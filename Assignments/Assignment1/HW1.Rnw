@@ -1,0 +1,475 @@
+\documentclass[12pt,letterpaper,final]{article}
+
+\usepackage{Sweave}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{textcomp}
+\usepackage{wasysym}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.15in}
+%\setlength{\topmargin}{0.5in}
+\setlength{\textheight}{22cm}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\parskip}{5pt plus 2pt minus 3pt}
+
+\def\thefootnote{\fnsymbol{footnote}}
+\setcounter{footnote}{1}
+
+\renewcommand{\baselinestretch}{1.2}
+\renewcommand{\labelenumi}{(\roman{enumi})}
+
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+
+% to get nice proofs ...
+\newcommand{\qedsymb}{\mbox{ }~\hfill~{\rule{2mm}{2mm}}}
+\newenvironment{proof}{\begin{trivlist}
+\item[\hspace{\labelsep}{\bf\noindent Proof: }]
+}{\qedsymb\end{trivlist}}
+
+
+\newfont{\msymb}{cmsy10 scaled 1000}
+
+\def\nullset{\mbox{\O}}
+\def\R{{I\!\!R}}
+\def\C{{I\!\!\!\!C}}
+\def\N{{I\!\!N}}
+
+\def\P{\mbox{\msymb P}}
+
+
+%\parskip 0.1in
+\pagenumbering{arabic}    %  Start using 1,2,... as page numbers.
+\pagestyle{plain}         %  Page numbers in middle bottom of page.
+%\setcounter{page}{80}  % XXXXXXXXXXXXXXXXX
+%\setcounter{theorem}{5} % XXXXXXXXXXXXXXXXX
+%\setcounter{definition}{10} % XXXXXXXXXXXXXXXXX
+
+\parindent 0in
+
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\begin{table}\centering
+\begin{tabular*}{6.15in}{@{\extracolsep{\fill}}|llr|} \hline
+STAT 5650 Statistical Learning and Data Mining 1 & \hspace*{0.5 in} 
+& Spring 2020 \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Name:} Michael Huber} \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Submission Date:} 01/27/2020} \\
+ & & \\
+\multicolumn{3}{|c|}{
+Homework 1} \\
+ & & \\
+\multicolumn{3}{|c|}{
+100 Points --- Due Wednesday 01/29/2020 (via Canvas by 11:59pm)} \\
+\hline
+\end{tabular*}
+\end{table}
+
+
+~ \newpage
+
+The purpose of this homework is to get you comfortable using R 
+to carry out basic matrix and vector calculations.
+The turtle data contains measurements (length, width, height) 
+on male and female turtles of the same species. If you are familiar 
+with SAS but not R, you can check many of the calculations in
+SAS but please do the calculations in R.
+
+
+\begin{enumerate}
+
+\item \underline{\bf Question 1:}
+Graphically summarize the distributions of the three variables using
+boxplots, histograms, and normal quantile plots. Do the summaries for 
+the combined data and for each gender of turtle.
+
+
+\begin{enumerate}
+
+<<echo=FALSE>>=
+library(ggplot2)
+library(gridExtra)
+library(MASS)
+library(vioplot)
+turtles <- read.csv("../../Data/turtles.csv")
+males <- turtles[turtles$Gender == 'male', 1:3]
+females <- turtles[turtles$Gender == 'female', 1:3]
+@
+
+
+
+
+
+\item Combined Data Summary Plots
+
+<<fig=TRUE, echo=FALSE>>=
+par(mfrow=c(3,3))
+hist(turtles$Length,
+     main = 'Turtles Length \n Histogram',
+     xlab = 'Turtles Length')
+qqnorm(turtles$Length,
+       main = 'Turtles Length \n Quantile Plot')
+boxplot(turtles$Length,
+        main = 'Turtles Length \n Box Plot',
+        ylab = 'Turtles Length')
+hist(turtles$Width,
+     main = 'Turtles Width \n Histogram',
+     xlab = 'Turtles Width')
+qqnorm(turtles$Width,
+       main = 'Turtles Width \n Quantile Plot')
+boxplot(turtles$Width,
+        main = 'Turtles Width \n Box plot',
+        ylab = 'Turtles Width')
+hist(turtles$Height,
+     main = 'Turtles Height \n Histogram',
+     xlab = 'Turtles Height')
+qqnorm(turtles$Height,
+       main = 'Turtles Height \n Quantile Plot')
+boxplot(turtles$Height,
+        main = 'Turtles Height \n Box Plot',
+        ylab = 'Turtles Height')
+@
+
+
+
+\underline{Summary:}
+The combined turtle data is close to a normal distribution. We can see some 
+right skewness in the histogram for the height of the turtle. We can also
+see that the quantile plot dips down slightly and the Box plot is also pushed
+down towards the bottom. Plots for length and width however, do appear to be
+more normally distributed. With only some slight variations.
+\\
+
+
+
+
+\item Male Turtle Summary Plots
+
+<<fig=TRUE, echo=FALSE>>=
+par(mfrow=c(3,3))
+hist(males$Length,
+     main = 'Male Turtles Length \n Histogram',
+     xlab = 'Male Turtles Length')
+qqnorm(males$Length,
+       main = 'Male Turtles Length \n Quantile Plot')
+boxplot(males$Length,
+        main = 'Male Turtles Length \n Box Plot',
+        ylab = 'Male Turtles Length')
+hist(males$Width,
+     main = 'Male Turtles Width \n Histogram',
+     xlab = 'Male Turtles Width')
+qqnorm(males$Width,
+       main = 'Male Turtles Width \n Quantile Plot')
+boxplot(males$Width,
+        main = 'Male Turtles Width \n Box plot',
+        ylab = 'Male Turtles Width')
+hist(males$Height,
+     main = 'Male Turtles Height \n Histogram',
+     xlab = 'Male Turtles Height')
+qqnorm(males$Height,
+       main = 'Male Turtles Height \n Quantile Plot')
+boxplot(males$Height,
+        main = 'Male Turtles Height \n Box Plot',
+        ylab = 'Male Turtles Height')
+@
+
+\underline{Summary:}
+Looking at just the male turtle data. The plots appear to be close 
+to a normal distribution across the length, width and height. They 
+do differ slightly in  the histogram for the height and length but
+they are close enough that I would still say they have a normal
+distribution.
+\\
+
+
+~ \newpage
+
+\item Female Turtle Summary Plots
+
+<<fig=TRUE, echo=FALSE>>=
+par(mfrow=c(3,3))
+hist(females$Length,
+     main = 'Female Turtles Length \n Histogram',
+     xlab = 'Female Turtles Length')
+qqnorm(females$Length,
+       main = 'Female Turtles Length \n Quantile Plot')
+boxplot(females$Length,
+        main = 'Female Turtles Length \n Box Plot',
+        ylab = 'Female Turtles Length')
+hist(females$Width,
+     main = 'Female Turtles Width \n Histogram',
+     xlab = 'Female Turtles Width')
+qqnorm(females$Width,
+       main = 'Female Turtles Width \n Quantile Plot')
+boxplot(females$Width,
+        main = 'Female Turtles Width \n Box plot',
+        ylab = 'Female Turtles Width')
+hist(females$Height,
+     main = 'Female Turtles Height \n Histogram',
+     xlab = 'Female Turtles Height')
+qqnorm(females$Height,
+       main = 'Female Turtles Height \n Quantile Plot')
+boxplot(females$Height,
+        main = 'Female Turtles Height \n Box Plot',
+        ylab = 'Female Turtles Height')
+@
+
+\underline{summary:}
+The female turtle data also has an approximately normal distribution. 
+The female length and width do appear to vary a little in the histogram 
+and the quantile plot. But the box plot for all variables appear to be
+normally distributed.
+\\
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 2:}
+Compute the covariance matrices and the correlation matrices for the
+male and female turtles, and visually compare them. (Later we will determine
+how to formally compare covariance matrices and mean vectors for different
+groups.)
+
+
+\begin{enumerate}
+\item Male and Female Covariance Matrices
+
+<<echo=FALSE>>=
+males.cov <- cov(males)
+females.cov <- cov(females)
+print('Male Covariance Matrix')
+males.cov
+print('Female Covariance Matrix')
+females.cov
+@
+
+\underline{Comparison:}
+Looking at the covariance matrices for male and female turtles. 
+We can see that they all have an increasing linear relationship. 
+The covariance values for female turtles is much greater than that 
+for male turtles. But generally you will just use covariance to 
+determine whether the variables have a positive linear relationship
+or a negative linear relationship.
+\\
+
+
+\item Male and Female Correlation Matrices
+
+<<echo=FALSE>>=
+males.cor <- cor(males)
+females.cor <- cor(females)
+print('Male Correlation Matrix')
+males.cor
+print('Female Correlation Matrix')
+females.cor
+@
+
+\underline{Comparison:}
+The correlation matrices for females and males show that all of the
+variables are positively correlated and that they have very strong 
+correlation between them. The correlation values do show greater 
+strength among the female turtles. But the male turtles are still 
+close behind them.
+\\
+
+\end{enumerate}
+
+
+
+\item \underline{\bf Question 3:}
+ For one of the genders, compute the matrix $T = \frac{1}{n-1} 
+ (\mathbf{Y}^T \mathbf{Y} - n \mathbf{\bar{y}} \mathbf{\bar{y}}^T)$ 
+ and compare it with the covariance matrix you previously obtained.
+ 
+
+
+<<echo=FALSE>>=
+n <- nrow(males)
+m_males <- as.matrix(males)
+ybar = apply(m_males, 2, mean)
+
+print('Matrix Computed Manually')
+(n-1)^-1*((t(m_males)%*%m_males)-(n*ybar%*%t(ybar)))
+print('Matrix Computed with cov() function')
+males.cov
+@
+
+\underline{Description:}
+The first matrix I computed using the formula given in the question.
+The second matrix was the covariance matrix I obtained previously using
+the cov function. As you can see they produce the same answer. The
+equation is just the full equation for creating a covariance matrix. Which
+means the function cov is doing something similar when you use the given
+data as input values.
+\\
+
+
+\newpage
+
+\item \underline{\bf Question 4:}
+ For one of the covariance matrices, compute the eigenvalues and 
+ eigenvectors of the inverseof the covariance matrix. What is the 
+ relationship between the eigenvalues and eigenvectors of a covariance 
+ matrix and its inverse?
+
+\begin{enumerate}
+
+\item Eigenvalues and Eigenvectors of the inverse of the covariance matrix.
+<<echo=FALSE>>=
+inv.males.cov <- solve(males.cov)
+inv.males.eig <- eigen(inv.males.cov)
+inv.males.eig$values
+inv.males.eig$vectors
+@
+
+
+
+\item Eigenvalues and Eigenvectors of the covariance matrix
+
+<<echo=FALSE>>=
+males.eig <- eigen(males.cov)
+males.eig$values
+males.eig$vectors
+@
+
+\item\underline{Comparison:}
+The eigenvalues of the inverse are just the reciprocals of the normal
+covariance matrix. So 1/195 should give you the eigenvalue of the 
+inverse. The sign doesn't matter but the eigenvectors will be the 
+same for the inverse just in different positions in the matrix. 
+Since 195 is the largest eigenvalue of the normal matrix. 1/195 
+makes it the smallest eigenvalue of the inverse matrix.
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 5:}
+Letting $\mathbf{u_1}$ denote the eigenvector corresponding to the 
+largest eigenvalue, $\lambda_1$ . Verify that $\mathbf{Su_1} = \lambda_1
+\mathbf{u}_1$ and $\mathbf{u}_1^T \mathbf{Su_1} = \lambda_1$.
+
+\begin{enumerate}
+
+\item Verification that $\mathbf{Su_1} = \lambda_1 \mathbf{u}_1$
+
+<<echo=FALSE>>=
+S <- males.cov
+u1 <- males.eig$vector[,1]
+lam1 <- males.eig$values[1]
+u1%*%S
+lam1 %*%u1
+@
+
+\underline{Description:}
+The first output is the covariance matrix $\mathbf{S}$ times by 
+the vector $u_1$. Below this is $\lambda_1 \mathbf{u_1}$. The outputs
+of the two equations are the same showing that they do in fact equal
+one another.
+
+
+\item Verification that $\mathbf{u}_1^T \mathbf{Su_1} = \lambda_1$.
+
+<<echo=FALSE>>=
+u1t <- t(u1)
+f <- u1t%*%S%*%u1
+f
+lam1
+@
+
+\underline{Description:}
+The first output is $\mathbf{u}_1^T \mathbf{Su_1}$. The second output
+is the value of $\lambda_1$. This shows that the output of the first 
+equation is the same as the second verifying that this is correct.
+
+\end{enumerate}
+
+
+\newpage
+
+
+
+\item \underline{\bf Question 6:}
+The length, width, and height are all measured in the same units. 
+Is there any reason we might prefer to use the correlation matrices 
+over the covariance matrices if we were to carry out principal 
+components analysis on this data?
+
+\underline{Answer:}
+Because the variances of the variables differ greatly from one 
+another the correlatin matrix would be a good choice because it 
+would standardize the values for the principal component analysis.
+\\
+
+
+\item \underline{\bf Question 7:}
+The length, width, and height are all measured in the same units. 
+Is there any reason we might prefer to use the correlation matrices 
+over the covariance matrices if we were to carry out principal 
+components analysis on this data?
+
+\begin{enumerate}
+
+\item Covariance Matrix Eigenvalues and Eigenvectors.
+<<echo=FALSE>>=
+female.cov.eig <- eigen(females.cov)
+
+
+female.cov.eig$values
+female.cov.eig$vectors
+@
+
+\item Correlation Matrix Eigenvalues and Eigenvectors.
+<<echo=FALSE>>=
+female.cor.eig <- eigen(females.cor)
+
+female.cor.eig$values
+female.cor.eig$vectors
+@
+
+
+\item\underline{Comparison:}
+Based on the eigenvalues I would recommend retaining the first 
+principal component in both instances. Then going in and comparing 
+their eigenvectors with the covariance matrix. The Length of the 
+turtle is weighted as having the biggest effect on the first principle
+component. In the correlation matrix all of the variables are weighted
+pretty evenly in the first principle component.
+
+
+\end{enumerate}
+
+
+
+\end{enumerate}
+
+
+\end{document}
+

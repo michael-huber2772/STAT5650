@@ -1,2 +1,6 @@
 .ipynb_checkpoints/
 Data/
+*.gz
+*.tex
+*.log
+*.Rhistory
