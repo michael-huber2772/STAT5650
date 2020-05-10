@@ -1,0 +1,711 @@
+\documentclass[12pt,letterpaper,final]{article}
+
+\usepackage{Sweave}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{textcomp}
+\usepackage{wasysym}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.15in}
+%\setlength{\topmargin}{0.5in}
+\setlength{\textheight}{22cm}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\parskip}{5pt plus 2pt minus 3pt}
+
+\def\thefootnote{\fnsymbol{footnote}}
+\setcounter{footnote}{1}
+
+\renewcommand{\baselinestretch}{1.2}
+\renewcommand{\labelenumi}{(\roman{enumi})}
+
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+
+% to get nice proofs ...
+\newcommand{\qedsymb}{\mbox{ }~\hfill~{\rule{2mm}{2mm}}}
+\newenvironment{proof}{\begin{trivlist}
+\item[\hspace{\labelsep}{\bf\noindent Proof: }]
+}{\qedsymb\end{trivlist}}
+
+
+\newfont{\msymb}{cmsy10 scaled 1000}
+
+\def\nullset{\mbox{\O}}
+\def\R{{I\!\!R}}
+\def\C{{I\!\!\!\!C}}
+\def\N{{I\!\!N}}
+
+\def\P{\mbox{\msymb P}}
+
+
+%\parskip 0.1in
+\pagenumbering{arabic}    %  Start using 1,2,... as page numbers.
+\pagestyle{plain}         %  Page numbers in middle bottom of page.
+%\setcounter{page}{80}  % XXXXXXXXXXXXXXXXX
+%\setcounter{theorem}{5} % XXXXXXXXXXXXXXXXX
+%\setcounter{definition}{10} % XXXXXXXXXXXXXXXXX
+
+\parindent 0in
+
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\begin{table}\centering
+\begin{tabular*}{6.15in}{@{\extracolsep{\fill}}|llr|} \hline
+STAT 5650 Statistical Learning and Data Mining 1 & \hspace*{0.5 in} & Spring 2020 \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Name:} Michael Huber} \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Submission Date:} 04/06/2020} \\
+ & & \\
+\multicolumn{3}{|c|}{
+Homework 4 (03/18/2020)} \\
+ & & \\
+\multicolumn{3}{|c|}{
+120 Points --- Due Monday 04/06/2020 (via Canvas by 11:59pm)} \\
+\hline
+\end{tabular*}
+\end{table}
+
+
+~ \newpage
+
+\begin{enumerate}
+
+\item \underline{\bf Question 1:}
+In a typical bootstrap sample approximately 37\% of the observations that are in the original
+dataset do not occur in the bootstrap sample. Here’s a derivation of that result. Consider a
+dataset with n observations which we may label 1, 2, $\cdots$, k-1, k, k+1, $\cdots$, n-1, n.
+
+
+\begin{enumerate}
+\item Suppose I select n observations from the original dataset with replacement. What is
+the chance that observation k is not among the selected observations? (Another way
+to think about this question is the following. Suppose I have a fair n–sided die with
+sides labelled 1, 2, $\cdots$, k, $\cdots$, n. I roll the die n times—and the rolls are all
+independent. What is the chance that the side labelled k does not occur in the n
+rolls?)
+
+<<echo=FALSE>>=
+library(randomForest)
+library(ada)
+library(verification)
+library(gbm)
+library(caret)
+library(e1071)
+@
+
+\underline{Answer:} 
+To figure the chance that observation k is not among the selected observations
+we take the product of the probabilities that each bootstrap
+observation is not the jth observation from the original sample.
+e.g. $(1-1/n)^n$. Definition taken from the links below.   
+
+\underline{References:} 
+\begin{itemize}
+\item https://rpubs.com/ppaquay/65561 Look at Question 2.  
+\item https://blogs.sas.com/content/iml/2017/06/28/average-bootstrap-sample-omits-data.html
+\end{itemize}
+
+
+\item Evaluate the expression you obtained in part a) for an increasing sequence of values
+of $n$.
+
+<<echo=TRUE>>=
+n = 10
+(1-1/n)^n
+
+n = 100
+(1-1/n)^n
+
+n = 1000
+(1-1/n)^n
+@
+
+
+
+
+
+\item Do you recognize the limit as n -> $\infty$ of the expression in part a)? If so, identify and
+evaluate it. If not, compute the expression in part a) for some very large values of $n$.
+
+<<echo=TRUE>>=
+n = 100000000
+(1-1/n)^n
+
+n = 500000000000
+(1-1/n)^n
+@
+
+\underline{Answer:}
+Computing two very large values for n we see that the values both equal 0.368.
+
+We know from calculus that the $limit$ as $ n \to \infty$ $(1+x/n)^n = e^x$. We also
+know that the limit a $n \to \infty$ of $(1-1/n)^n$ is $1/e$. Which shows us that
+as n approaches infinity the value will always equal 0.368. Which matches what we have 
+shown above for very large numbers of n.
+We can write this equation as $1/e \approx 0.368$ as $n \to \infty$   
+
+\underline{References:} 
+\begin{itemize}
+\item https://rpubs.com/ppaquay/65561 Look at Question 2h  
+\item https://blogs.sas.com/content/iml/2017/06/28/average-bootstrap-sample-omits-data.html
+\end{itemize}
+
+
+
+\item (Quite hard). What is the standard error of the observed number and proportion of
+observations in the original sample that are not in a bootstrap sample?
+
+\underline{Answer:} The standard error of the observed number of observations can be figured 
+out based on what we have calculated above. So we know that $ X=np$ then $P=X/n$ so 
+$E[p] = E[X/n] = E[X]/n = n\pi/n = \pi \approx 0.37$ and
+$SE(p) = SE(X/n) = 1/n SE(X) = \sqrt{\pi(1-\pi)/n}\approx \sqrt{0.37(1-0.37)/n}$
+
+So for the formula above where n = 1000 we get the following output
+
+<<echo=TRUE>>=
+n = 1000
+sqrt((0.37*(1-0.37))/n)
+@
+
+
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 2:}
+This problem continues the analysis of the Forensic Glass data. 
+
+
+\begin{enumerate}
+\item Apply random forests to the data and obtain the out-of-bag confusion matrix. How
+well can we classify this data, and where are the major misclassifications? How do
+your results compare to the classification tree you fitted in Homework 3.
+
+<<echo=FALSE>>=
+glass <- read.csv("../../Data/Glass.csv")
+set.seed(5341)
+
+Glass.rf=randomForest(as.factor(GlassType) ~ . ,importance=TRUE,data=glass)
+
+glass.rf.confusion = Glass.rf$confusion
+glass.rf.confusion
+
+print("Accuracy:")
+accuracy = 100*sum(diag(glass.rf.confusion))/sum(glass.rf.confusion)
+accuracy
+@
+
+
+\underline{Answer:}  
+Right out of the box without any changes to the data we are getting an accuracy rate of \Sexpr{round(accuracy, 2)}\%
+using random forests. \\
+The top 3 missclassifications are GlassType 3, 4, and 5 respectively. 3 has an error rate of
+\Sexpr{round(glass.rf.confusion[3,7], 3)}. While 4 as an error rate of \Sexpr{round(glass.rf.confusion[4,7], 3)} and
+5 has an error rate of \Sexpr{round(glass.rf.confusion[5,7], 3)}. \\
+Comparing our accuracy rate of \Sexpr{round(accuracy, 2)}\% to the accuracy rate of 67.29\% that we saw in homework
+3 when we fit a classification tree to the data. We can see that even without any variable selection or changes to
+the data random forests are already out performing the classification tree on this data. Improving our accuracy by
+around 13\%.\\
+
+
+
+\item Use random forests to select a subset of the variables (which may be all the variables!)
+Refit random forests with only the important variables and obtain the out-of-bag
+confusion matrix. Did you observe any change in predictive accuracy?
+
+<<echo=FALSE, fig=TRUE>>=
+varImpPlot(Glass.rf,scale=FALSE)
+@
+
+\underline{Variable Selection:}  based on the chart above I first chose Magnesium, Refindex, Aluminum,
+Calcium, and Barium as my subset of variables to see if I could improve the accuracy. But using that
+subwset dropped the accuracy to around 75\%. So I kept adding additional variables back into the subset
+of data until my accuracy surpassed what I had above. In the end I ended up using all of the variables 
+to get a better accuracy, I think the accuracy came in slightly higher because subsetting the data just
+reordered the data frame.
+
+<<echo=FALSE>>=
+Glass.var=subset(glass,select=c(GlassType, Magnesium, Refindex, 
+                                Aluminum, Calcium, Barium, Potassium,
+                                Sodium, Silicon, Iron))
+
+set.seed(5341)
+
+Glass.var.rf=randomForest(as.factor(GlassType) ~ . ,
+                      importance=TRUE,
+                      data=Glass.var)
+
+glass.vrf.confusion = Glass.var.rf$confusion
+glass.vrf.confusion
+
+print("Accuracy:")
+accuracy = 100*sum(diag(glass.vrf.confusion))/sum(glass.vrf.confusion)
+accuracy
+@
+
+\underline{Summary:}\\
+In the end I got an accuracy of 81.226\% Which is just 1 or 2 percent higher than the accuracy I got
+in question a. So it is very close to what I was able to calculate above. Slightly better but from
+time to time as I run the Random Forests the accuracy changes slightly. \\
+
+
+
+\item Summarize your results for your analyses of the forensic glass data using classification
+trees and random forests.\\
+
+\underline{Summary Answer:} After comparing the random forests models on the glass data to 
+the classification tree models we computed in homework 3 using the glass data. We can see 
+in this instance that random forests outperformed the classification trees by increasing
+our predictive accuracy over 10\%. It also is a better choice because for random forests
+you do not need to run the data through cross-validation, which improved the performance
+of the code along with decreasing the number of lines of code that you need to write.
+
+\end{enumerate}
+
+\newpage
+
+\item This problem continues your analyses of the Uintah Mountains cavity nesting birds’ data.
+
+\begin{enumerate}
+
+\item Apply random forests to all the data with Species as the response variable and obtain
+the out-of-bag confusion matrix. How well can we classify these data, and where are
+the major misclassifications? How do your results compare to the classification tree
+you fitted in Homework \#3.
+
+<<echo=FALSE>>=
+nest <- read.csv("../../Data/Nest.csv")
+
+set.seed(5341)
+
+nest.rf=randomForest(as.factor(Species) ~ . ,
+                      importance=TRUE,
+                      data=nest)
+
+nest.rf.confusion = nest.rf$confusion
+nest.rf.confusion
+
+print("Accuracy:")
+accuracy1 = 100*sum(diag(nest.rf.confusion))/sum(nest.rf.confusion)
+accuracy1
+@
+
+\underline{Answer:} 
+Right out of the box we obtain an accuracy of \Sexpr{round(accuracy1, 2)} which is an okay prediction rate 
+but when we look at the confustion matrix it looks like we aren't doing very well classifying the different species.
+The model predicts Non-nest perfectly. But flicker has an error rate of \Sexpr{round(nest.rf.confusion[2,5], 2)},
+while Sapsucker has an error rate of \Sexpr{round(nest.rf.confusion[4,5], 2)} and Chickadee has an error rate of
+\Sexpr{round(nest.rf.confusion[1,5], 2)}. So we are not able to classify the specific species very well.\\
+When I ran this data through the classification tree in homework 3 I got an accuracy of 54.46\%. So getting an
+accuracy rate of \Sexpr{round(accuracy1, 2)} is a huge improvement over the classification tree. 
+
+\item ) Use random forests to select a subset of the variables (which may be all the variables!)
+Refit random forests with only the important variables and obtain the out-of-bag
+confusion matrix. Did you observe any change in predictive accuracy?
+
+<<echo=FALSE, fig=TRUE>>=
+varImpPlot(nest.rf,scale=FALSE)
+@
+
+\underline{Variable Selection:} Based on the above plot I chose to use the Nest and NumTree3to6in
+variables. But after I ran this code I saw that the accuracy got worse. In the end I used Nest, 
+NumTree3to6in, NumConifer and NumTree6to9in which ended up improving 
+                                  
+
+<<echo=FALSE>>=
+nest.var = subset(nest, select = c(Species, Nest, NumTree3to6in, NumConifer,
+                                  NumTree6to9in))
+
+set.seed(5341)
+
+nest.var.rf = randomForest(as.factor(Species) ~ . ,
+                      importance=TRUE,
+                      data=nest.var)
+
+nest.vrf.confusion = nest.var.rf$confusion
+nest.vrf.confusion
+
+print("Accuracy:")
+accuracy2 = 100*sum(diag(nest.vrf.confusion))/sum(nest.vrf.confusion)
+accuracy2
+@
+
+\underline{Answer:}
+Substting the data to only use Nest, NumTree3to6in, NumConifer and NumTree6to9in I was able to
+get the accuracy up to \Sexpr{round(accuracy2 ,2)}\%. Which is an improvement from \Sexpr{round(accuracy1, 2)}\%
+
+\item Summarize your results for your analyses of the birds’ nest data using classification
+trees and random forests.
+
+\underline{Summary:}
+Looking at the different results between classification trees and random forest on the nest data we are able to see
+that random forests help to improve our accuracy by \Sexpr{72.19-54.46}\% right out of the box without performing any
+variable selection. After variable selection in our random forest model we were able to increase the accuracy from
+54.46\% in our classification tree model up to \Sexpr{round(accuracy2 ,2)}\%. Which ended up being an increase of
+\Sexpr{round(accuracy2-accuracy1 ,2)}\% over our first random forest model that didn't have any variable selection.
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item This problem also continues your analyses of the Uintah Mountains cavity nesting birds’ data.
+
+\begin{enumerate}
+
+\item Apply random forests to all the data with nest as the response variable and obtain the
+out-of-bag confusion matrix. How well can we classify these data, and where are the
+major misclassifications? How do your results compare to the classification tree you
+fitted in Homework 3.
+
+<<echo=FALSE>>=
+set.seed(5341)
+
+nest.nrf=randomForest(as.factor(Nest) ~ . - Species,
+                      importance=TRUE,
+                      data=nest)
+
+nest.nrf.confusion = nest.nrf$confusion
+nest.nrf.confusion
+
+print("Accuracy:")
+accuracy3 = 100*sum(diag(nest.nrf.confusion))/sum(nest.nrf.confusion)
+accuracy3
+@
+
+\underline{Answer:}
+Once I removed the Species variable from the data I am able to classify this data with an
+\Sexpr{round(accuracy3,2)}\% accuracy rate. The area where we are having the largest missclassification
+rate is where Nest equals 0, which has an error rate of \Sexpr{round(nest.nrf.confusion[1,3],3)}. The
+values where Nest equal 1 perform a little bit better only having an error rate of 
+\Sexpr{round(nest.nrf.confusion[2,3],3)}.\\
+Comparing our accuracy rate to that of the classification tree in Homework 3, the classification tree had
+an accuracy rate of 80.28\%. While the random forest model had an accuracy of \Sexpr{round(accuracy3,2)}\%.
+So in this instance the classification tree does perform much better than those in the past but random forest
+does still perform slightly better than the classification tree. With an improvement of 
+\Sexpr{round(accuracy3-80.28,2)}\%.
+
+
+\item Use random forests to select a subset of the variables (which may be all the variables!)
+Refit random forests with only the important variables and obtain the out-of-bag
+confusion matrix. Did you observe any change in predictive accuracy?
+
+<<echo=FALSE, fig=TRUE>>=
+varImpPlot(nest.nrf,scale=FALSE)
+@
+
+<<echo=FALSE>>=
+nest.nvar = subset(nest, select = c(Nest, NumTree3to6in, NumTree9to15in,
+                                   NumTree1to3in, NumTree6to9in, NumDownSnags,
+                                   NumConifer, NumTreegt15in, NumSnags, NumTreelt1in))
+
+set.seed(5341)
+
+nest.nv.rf = randomForest(as.factor(Nest) ~ . ,
+                      importance=TRUE,
+                      data=nest.nvar)
+
+nest.nvrf.confusion = nest.nv.rf$confusion
+nest.nvrf.confusion
+
+print("Accuracy:")
+accuracy4 = 100*sum(diag(nest.nvrf.confusion))/sum(nest.nvrf.confusion)
+accuracy4
+@
+
+\underline{Variable Selection and Summary:} After reviewing the Variable importance plot above
+and playing around with different combinations of variables. I settled on using the following
+variables for the nest model. NumTree3to6in, NumTree9to15in, NumTree1to3in, NumTree6to9in, 
+NumDownSnags, NumConifer, NumTreegt15in, NumSnags, and NumTreelt1in. Essentially I used all of
+the variables except StandType and PctShrubCover. Using these variables I was able to increase
+the accuracy of the mdoel from \Sexpr{round(accuracy3,2)}\% up to \Sexpr{round(accuracy4,2)}\%.
+An increase of \Sexpr{round(accuracy4-accuracy3,2)}\%.
+
+
+\item Now apply adaboost to the data and add the classification accuracies to those you
+have previously obtained for classification trees and random forests.
+<<echo=FALSE>>=
+kappa=function(x){
+      n=sum(x)
+      pobs=(x[1,1]+x[2,2])/n
+      pexp=(sum(x[1,])*sum(x[,1])+sum(x[2,])*sum(x[,2]))/n^2
+      kappa=(pobs-pexp)/(1-pexp)
+      t1=0
+      t2=0
+      t3=0
+      pii=x/n
+      pidot=apply(pii,1,sum)
+      pdotj=apply(pii,2,sum)
+      for(i in 1:2){
+            t1 = t1 + pii[i,i]*((1-pexp) - (1-pobs)*(pidot[i]+pdotj[i]))^2
+      }
+      t2 = pii[1,2]*(pdotj[1]+pidot[2])^2 + pii[2,1]*(pdotj[2] + pidot[1])^2
+      t3 = (pobs*pexp-2*pexp+pobs)^2
+      vhat = (t1 + t2*(1-pobs)^2 -t3)/(n*(1-pexp)^4)
+      se=sqrt(vhat)
+      return(c(kappa,se))
+}
+
+
+class.sum=function(truth,predicted){
+     xt=table(truth,round(predicted+0.000001))
+     pcc=round(100*sum(diag(xt))/sum(xt),2)
+     spec=round(100*xt[1,1]/sum(xt[1,]),2)
+     sens=round(100*xt[2,2]/sum(xt[2,]),2)
+     kap=round(kappa(xt)[1],4)
+     au=round(roc.area(truth,predicted)$A,4)
+     return(cbind(c("Percent Correctly Classified = ","Specificity = ","Sensitivity = ","Kappa =","AUC= "),c(pcc,spec,sens,kap,au)))
+     }
+@
+
+<<echo=FALSE>>=
+Nests = subset(nest, select = c(Nest, NumTree3to6in, NumTree9to15in,
+                                NumTree1to3in, NumTree6to9in, NumDownSnags,
+                                NumConifer, NumTreegt15in, NumSnags, 
+                                NumTreelt1in, StandType, PctShrubCover))
+set.seed(529)
+Nests.ada.xvalpr=rep(0,nrow(Nests))
+xvs=rep(1:10,length=nrow(Nests))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=Nests[xvs!=i,]
+      test=Nests[xvs==i,]
+      glub=ada(as.factor(Nest)~ . ,loss="exponential",data=train)
+      Nests.ada.xvalpr[xvs==i]=predict(glub,newdata=test,type="prob")[,2]
+}
+
+table(Nests$Nest,round(Nests.ada.xvalpr))
+class.sum(Nests$Nest,Nests.ada.xvalpr)
+@
+
+\underline{Summary:}
+\begin{itemize}
+\item \underline{Ada Boost:} Accuracy = 82.63\%
+\item \underline{Random Forest (without Variable Selection):} Accuracy = \Sexpr{round(accuracy3,2)}\%
+\item \underline{Random Forest(With Variable Selection):} Accuracy = \Sexpr{round(accuracy4,2)}\%
+\item \underline{Classification Trees:} Accuracy = 80.28\% 
+\end{itemize}
+Looking at the three methods they all seem to perform similarly in accuracy rates. Random Forest still
+performs the best of the three methods with and without variable selection. But they are all within a 
+few percent of each other.
+
+
+\item Fit untuned and tuned gradient boosting machines to the data and compare the
+results to those previously obtained.
+
+\underline{Untuned Gradient Boosting Machine:}
+<<echo=FALSE>>=
+set.seed(424)
+Nests.gbm.xvalpr=rep(0,nrow(Nests))
+xvs=rep(1:10,length=nrow(Nests))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=Nests[xvs!=i,]
+      test=Nests[xvs==i,]
+      glub=gbm(Nest~ . ,distribution="bernoulli",n.trees=5000,data=train)
+      Nests.gbm.xvalpr[xvs==i]=predict(glub,newdata=test,type="response",n.trees=5000)
+}
+
+table(Nests$Nest,round(Nests.gbm.xvalpr))
+class.sum(Nests$Nest,Nests.gbm.xvalpr)
+@
+
+\underline{Tuned Gradient Boosting Machine:}
+
+\underline{Tuning Parameters:} After running the data through the tuning functions we got the following
+results to plug into the Gradient Booting Model.
+\begin{itemize}
+\item interaction.depth = 14 
+\item n.trees = 75
+\item shrinkage = 0.1
+\item n.minobsinnode = 10
+\end{itemize}
+
+<<echo=FALSE>>=
+# set.seed(732)
+# fitControl = trainControl(method = "cv", number = 10 )
+
+#gbmGrid = expand.grid(interaction.depth = c(12, 14, 16, 18, 20), 
+ #                     n.trees = c(25,50,75,100), 
+  #                    shrinkage = c(0.01, 0.05, 0.1, 0.2 ), 
+   #                   n.minobsinnode=10)
+# gbmFit = train( as.factor(Nest)~ . , 
+  #             method="gbm", 
+   #            tuneGrid = gbmGrid, 
+    #           trControl = fitControl, 
+     #          data=Nests)
+# gbmFit
+@
+
+
+<<echo=FALSE>>=
+set.seed(424)
+Nests.gbmopt.xvalpr=rep(0,nrow(Nests))
+xvs=rep(1:10,length=nrow(Nests))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=Nests[xvs!=i,]
+      test=Nests[xvs==i,]
+      glub=gbm(Nest~ . ,
+               distribution="bernoulli",
+               interaction.depth=14,
+               n.trees=75, 
+               shrinkage=0.1,
+               n.minobsinnode=10,
+               data=train)
+      Nests.gbmopt.xvalpr[xvs==i]=predict(glub,
+                                             newdata=test,
+                                             type="response",
+                                             n.trees=75)
+}
+
+table(Nests$Nest,round(Nests.gbmopt.xvalpr))
+class.sum(Nests$Nest,Nests.gbmopt.xvalpr)
+@
+
+\underline{Summary:}
+\begin{itemize}
+\item \underline{GBM without Tuning:} Accuracy = 74.18\%
+\item \underline{GBM with Tuning:} Accuracy = 84.51\%
+\item \underline{Ada Boost:} Accuracy = 82.63\%
+\item \underline{Random Forest (without Variable Selection):} Accuracy = \Sexpr{round(accuracy3,2)}\%
+\item \underline{Random Forest(With Variable Selection):} Accuracy = \Sexpr{round(accuracy4,2)}\%
+\item \underline{Classification Trees:} Accuracy = 80.28\% 
+\end{itemize}
+Adding the gradient boosting machines, Random Forest wtih variable selection still performs the best in this
+instance. But the tuned Gradient Boosting machine does move into second place, replacing Random Forests without
+any variable selection. Looking at GBM though without tuning it performs the worst out of all the models.
+
+
+\item Fit untuned and tuned support vector machines to the data and compare the results
+to those previously obtained.
+
+\underline{Untuned Support Vector Machines}
+<<echo=FALSE>>=
+set.seed(424)
+
+Nests.svm.xvalpred=rep(0,nrow(Nests))
+xvs=rep(1:10,length=nrow(Nests))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=Nests[xvs!=i,]
+      test=Nests[xvs==i,]
+      glub=svm(as.factor(Nest)~ . ,probability=TRUE,data=train)
+      Nests.svm.xvalpred[xvs==i]=attr(predict(glub,test,probability=TRUE),"probabilities")[,2]
+}
+
+table(Nests$Nest,round(Nests.svm.xvalpred))
+class.sum(Nests$Nest,Nests.svm.xvalpred)
+@
+
+\underline{Tuned Support Vector Machines}
+<<echo=FALSE, fig=TRUE>>=
+Nests.tunesvm=tune.svm(as.factor(Nest)~ . ,
+                       data=Nests, 
+                       gamma=c(0.02,0.04,0.08,0.16,0.32),
+                       cost=c(1,2,4,8))
+
+plot(Nests.tunesvm)
+
+summary(Nests.tunesvm)
+@
+
+I have used the chart and information above to help me tune the Suport Vector Machine.
+
+<<echo=FALSE>>=
+set.seed(425)
+
+Nests.svm2.xvalpred=rep(0,nrow(Nests))
+xvs=rep(1:10,length=nrow(Nests))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=Nests[xvs!=i,]
+      test=Nests[xvs==i,]
+      glub=svm(as.factor(Nest)~ . ,
+               gamma=0.04,
+               cost=8,
+               probability=TRUE,
+               data=train)
+      Nests.svm2.xvalpred[xvs==i]=attr(predict(glub,
+                                               test,
+                                               probability=TRUE),
+                                       "probabilities")[,2]
+}
+
+table(Nests$Nest,round(Nests.svm2.xvalpred))
+class.sum(Nests$Nest,Nests.svm2.xvalpred)
+@
+
+\underline{Summary:}
+\begin{itemize}
+\item \underline{SVM without Tuning:} Accuracy = 86.38\%
+\item \underline{SVM with Tuning:} Accuracy = 88.26\%
+\item \underline{GBM without Tuning:} Accuracy = 74.18\%
+\item \underline{GBM with Tuning:} Accuracy = 84.51\%
+\item \underline{Ada Boost:} Accuracy = 82.63\%
+\item \underline{Random Forest (without Variable Selection):} Accuracy = \Sexpr{round(accuracy3,2)}\%
+\item \underline{Random Forest(With Variable Selection):} Accuracy = \Sexpr{round(accuracy4,2)}\%
+\item \underline{Classification Trees:} Accuracy = 80.28\% 
+\end{itemize}
+
+In this instance the Support Vector Machine (SVM) performs best in classifying the nest data. It
+has a better accuracy than the Random Forest with variable selection, before and after tuning the model.
+
+\item Briefly discuss the results of all your analyses. Which method(s) did best on these
+data?
+
+\underline{Summary:}
+\begin{itemize}
+\item \underline{SVM without Tuning:} Accuracy = 86.38\%
+\item \underline{SVM with Tuning:} Accuracy = 88.26\%
+\item \underline{GBM without Tuning:} Accuracy = 74.18\%
+\item \underline{GBM with Tuning:} Accuracy = 84.51\%
+\item \underline{Ada Boost:} Accuracy = 82.63\%
+\item \underline{Random Forest (without Variable Selection):} Accuracy = \Sexpr{round(accuracy3,2)}\%
+\item \underline{Random Forest(With Variable Selection):} Accuracy = \Sexpr{round(accuracy4,2)}\%
+\item \underline{Classification Trees:} Accuracy = 80.28\% 
+\end{itemize}
+
+Looking over all of the models they all perform in the 80\% range after being tuned. Some of them are
+very close to one another in performance that under different conditions one may perform slightly better
+than the other. But it does appear in this instance that Support Vector Machines perform the best out of
+all the models. Before tuning and especialy after tuning the model.\\
+Out of the tuned models, Classification trees perform the worst out of all the models at 80.28\% but SVM
+at its best is at 88.26\%. so it is a significant improvement but it does not go above a 10\% increase in
+the accuracy rate.
+
+
+
+\end{enumerate}
+
+
+\end{enumerate}
+
+
+\end{document}
+

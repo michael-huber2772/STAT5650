@@ -1,0 +1,236 @@
+#########################
+### ADABOOST Defaults ###
+#########################
+
+library(ada)
+library(verification)
+
+Loreg.ada=ada(as.factor(LobaOreg)~ . ,loss="exponential",data=lichenLO)
+
+Loreg.ada$confusion
+class.sum(lichenLO$LobaOreg,predict(Loreg.ada,newdata=lichenLO,type="prob")[,2])
+
+set.seed(529)
+Loreg.ada.xvalpr=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=lichenLO[xvs!=i,]
+      test=lichenLO[xvs==i,]
+      glub=ada(as.factor(LobaOreg)~ . ,loss="exponential",data=train)
+      Loreg.ada.xvalpr[xvs==i]=predict(glub,newdata=test,type="prob")[,2]
+}
+
+table(lichenLO$LobaOreg,round(Loreg.ada.xvalpr))
+class.sum(lichenLO$LobaOreg,Loreg.ada.xvalpr)
+
+table(pilotI$LobaOreg,round(predict(Loreg.ada,newdata=pilotI,type="prob")[,2]))
+class.sum(pilotI$LobaOreg,predict(Loreg.ada,newdata=pilotI,type="prob")[,2])
+
+
+
+#########################
+### Gradient Boosting ###
+#########################
+
+library(verification)
+library(gbm)
+library(caret)
+
+Loreg.gbm=gbm(LobaOreg~ . ,distribution="bernoulli",n.trees=5000,data=lichenLO)
+
+table(lichenLO$LobaOreg,predict(Loreg.gbm,type="response",n.trees=5000))
+class.sum(lichenLO$LobaOreg,predict(Loreg.gbm,type="response",n.trees=5000))
+
+set.seed(424)
+Loreg.gbm.xvalpr=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=lichenLO[xvs!=i,]
+      test=lichenLO[xvs==i,]
+      glub=gbm(LobaOreg~ . ,distribution="bernoulli",n.trees=5000,data=train)
+      Loreg.gbm.xvalpr[xvs==i]=predict(glub,newdata=test,type="response",n.trees=5000)
+}
+
+table(lichenLO$LobaOreg,Loreg.gbm.xvalpr)
+class.sum(lichenLO$LobaOreg,Loreg.gbm.xvalpr)
+
+table(pilotI$LobaOreg,predict(Loreg.gbm,newdata=pilotI,type="response",n.trees=5000))
+class.sum(pilotI$LobaOreg,predict(Loreg.gbm,newdata=pilotI,type="response",n.trees=5000))
+
+
+##############################################
+#### Tuning Gradient Boosting Using caret ####
+##############################################
+
+set.seed(732)
+fitControl = trainControl(method = "cv", number = 10 )
+
+#
+# tune gbm
+#
+gbmGrid = expand.grid(interaction.depth = c(12, 14, 16, 18, 20), n.trees = c(25,50,75,100), shrinkage = c(0.01, 0.05, 0.1, 0.2 ), n.minobsinnode=10)
+gbmFit = train( as.factor(LobaOreg)~ . , method="gbm", tuneGrid = gbmGrid, trControl = fitControl, data=lichenLO)
+gbmFit
+
+
+
+LobaOreg.gbm2=gbm(LobaOreg ~ . ,distribution="bernoulli",interaction.depth=18,n.trees=50, shrinkage=0.05,n.minobsinnode=10,data=lichenLO)
+
+table(LAQI$LobaOreg,round(predict(LobaOreg.gbm2,type="response",n.trees=50)))
+class.sum(LAQI$LobaOreg,predict(LobaOreg.gbm2,type="response",n.trees=50))
+
+LobaOreg.gbmopt.xvalpr=rep(0,nrow(LAQI))
+xvs=rep(1:10,length=nrow(LAQI))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=lichenLO[xvs!=i,]
+      test=lichenLO[xvs==i,]
+      glub=gbm(LobaOreg~ . ,distribution="bernoulli",interaction.depth=18,n.trees=50, shrinkage=0.05,n.minobsinnode=10,data=train)
+      LobaOreg.gbmopt.xvalpr[xvs==i]=predict(glub,newdata=test,type="response",n.trees=50)
+}
+
+table(LAQI$LobaOreg,round(LobaOreg.gbmopt.xvalpr))
+class.sum(LAQI$LobaOreg,LobaOreg.gbmopt.xvalpr)
+
+
+table(pilotI$LobaOreg,round(predict(LobaOreg.gbm2,newdata=pilotI,type="response",n.trees=50)))
+class.sum(pilotI$LobaOreg,predict(LobaOreg.gbm2,newdata=pilotI,type="response",n.trees=50))
+
+
+
+
+
+snra2=subset(snra,select=c(Blue,Green,Red,NearInfrared,SoilBrightness,Greenness,Yellowness,NoneSuch,NDVI,Elevation,Type))
+
+snra2.gbm=gbm(Type~ . ,data=snra2,distribution="multinomial",n.trees=500)
+
+snra2.gbm.predprobs = as.matrix(predict(snra2.gbm, type = "response", n.trees = 500)[,,1])
+
+snra2.gbm.predclass=rep(0,nrow(snra2))
+for(i in 1:nrow(snra2)){
+    snra2.gbm.predclass[i] = 1
+    maxsofar=snra2.gbm.predprobs[i,1]
+    for(j in 2:10){
+        if(snra2.gbm.predprobs[i,j] > maxsofar){
+            maxsofar=snra2.gbm.predprobs[i,j]
+            snra2.gbm.predclass[i] = j
+            }
+        }
+    }
+    
+snra2.gbm.confuse=table(snra2$Type,snra2.gbm.predclass)
+snra2.gbm.confuse
+
+snra2.gbm.confuse2 = cbind(snra2.gbm.confuse[,1:3],0,snra2.gbm.confuse[,4:9])
+100*sum(diag(snra2.gbm.confuse2))/sum(snra2.gbm.confuse2)
+
+
+
+###############################
+### SUPPORT VECTOR MACHINES ###
+###############################
+
+library(e1071)
+
+Loreg.svm=svm(as.factor(LobaOreg)~ . ,probability=TRUE,data=lichenLO)
+
+Loreg.svm.resubpred=predict(Loreg.svm,lichenLO,probability=TRUE)
+
+table(lichenLO$LobaOreg,round(attr(Loreg.svm.resubpred,"probabilities")[,2]))
+class.sum(lichenLO$LobaOreg,attr(Loreg.svm.resubpred,"probabilities")[,2])
+
+
+Loreg.svm.xvalpred=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=lichenLO[xvs!=i,]
+      test=lichenLO[xvs==i,]
+      glub=svm(as.factor(LobaOreg)~ . ,probability=TRUE,data=train)
+      Loreg.svm.xvalpred[xvs==i]=attr(predict(glub,test,probability=TRUE),"probabilities")[,2]
+}
+
+table(lichenLO$LobaOreg,round(Loreg.svm.xvalpred))
+class.sum(lichenLO$LobaOreg,Loreg.svm.xvalpred)
+
+
+
+Loreg.svm.pilotpred=predict(Loreg.svm,pilotI,probability=TRUE)
+table(pilotI$LobaOreg,round(attr(Loreg.svm.pilotpred,"probabilities")[,2]))
+class.sum(pilotI$LobaOreg,attr(Loreg.svm.pilotpred,"probabilities")[,2])
+
+
+
+
+#####################################
+### TUNED SUPPORT VECTOR MACHINES ###
+#####################################
+
+library(e1071)
+
+Loreg.tunesvm=tune.svm(as.factor(LobaOreg)~ . ,data=lichenLO, gamma=c(0.02,0.04,0.08,0.16,0.32),cost=c(1,2,4,8))
+
+plot(Loreg.tunesvm)
+
+summary(Loreg.tunesvm)
+
+
+Loreg.svm2=svm(as.factor(LobaOreg)~ . ,probability=TRUE,gamma=0.04, cost=4, data=lichenLO)
+
+Loreg.svm2.resubpred=predict(Loreg.svm2,lichenLO,probability=TRUE)
+
+table(lichenLO$LobaOreg,round(attr(Loreg.svm2.resubpred,"probabilities")[,2]))
+class.sum(lichenLO$LobaOreg,attr(Loreg.svm2.resubpred,"probabilities")[,2])
+
+
+Loreg.svm2.xvalpred=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+      train=lichenLO[xvs!=i,]
+      test=lichenLO[xvs==i,]
+      glub=svm(as.factor(LobaOreg)~ . ,gamma=0.04,cost=4,probability=TRUE,data=train)
+      Loreg.svm2.xvalpred[xvs==i]=attr(predict(glub,test,probability=TRUE),"probabilities")[,2]
+}
+
+table(lichenLO$LobaOreg,round(Loreg.svm2.xvalpred))
+class.sum(lichenLO$LobaOreg,Loreg.svm2.xvalpred)
+
+
+
+Loreg.svm2.pilotpred=predict(Loreg.svm2,pilotI,probability=TRUE)
+table(pilotI$LobaOreg,round(attr(Loreg.svm2.pilotpred,"probabilities")[,2]))
+class.sum(pilotI$LobaOreg,attr(Loreg.svm2.pilotpred,"probabilities")[,2])
+
+
+
+
+
+
+
+
+###################
+####### OLD #######
+###################
+
+LAQI1 = subset(LAQI, select=c(LobaOreg,ACONIF,DegreeDays,TransAspect,Slope,
+			Elevation,PctBroadLeafCov,PctConifCov,PctVegCov,
+			TreeBiomass,EvapoTransAve,EvapoTransDiff,MoistIndexAve,
+			MoistIndexDiff,PrecipAve,PrecipDiff,RelHumidAve,
+			RelHumidDiff,PotGlobRadAve,PotGlobRadDiff,TempAve,
+			TempDiff,VapPressAve,VapPressDiff,ReserveStatus) )
+LAQI1$ReserveStatus = as.numeric(LAQI1$ReserveStatus)
+
+piloti1 = subset(pilotI, select=c(LobaOreg,ACONIF,DegreeDays,TransAspect,Slope,
+			Elevation,PctBroadLeafCov,PctConifCov,PctVegCov,
+			TreeBiomass,EvapoTransAve,EvapoTransDiff,MoistIndexAve,
+			MoistIndexDiff,PrecipAve,PrecipDiff,RelHumidAve,
+			RelHumidDiff,PotGlobRadAve,PotGlobRadDiff,TempAve,
+			TempDiff,VapPressAve,VapPressDiff,ReserveStatus) )
+piloti1$ReserveStatus = as.numeric(piloti1$ReserveStatus)
+
+gbmGrid = expand.grid(.interaction.depth = c(12, 14, 16, 18, 20), .n.trees = c(25,50,75,100), .shrinkage = c(0.01, 0.05, 0.1, 0.2) )
+gbmFit = train( LAQI1[,-1], as.factor(LAQI1[,1]), "gbm", tuneGrid = gbmGrid, trControl = fitControl)
+gbmFit

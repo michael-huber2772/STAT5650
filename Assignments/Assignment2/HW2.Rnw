@@ -1,0 +1,924 @@
+\documentclass[12pt,letterpaper,final]{article}
+
+\usepackage{Sweave}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{textcomp}
+\usepackage{wasysym}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.15in}
+%\setlength{\topmargin}{0.5in}
+\setlength{\textheight}{22cm}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\parskip}{5pt plus 2pt minus 3pt}
+
+\def\thefootnote{\fnsymbol{footnote}}
+\setcounter{footnote}{1}
+
+\renewcommand{\baselinestretch}{1.2}
+\renewcommand{\labelenumi}{(\roman{enumi})}
+
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+
+% to get nice proofs ...
+\newcommand{\qedsymb}{\mbox{ }~\hfill~{\rule{2mm}{2mm}}}
+\newenvironment{proof}{\begin{trivlist}
+\item[\hspace{\labelsep}{\bf\noindent Proof: }]
+}{\qedsymb\end{trivlist}}
+
+
+\newfont{\msymb}{cmsy10 scaled 1000}
+
+\def\nullset{\mbox{\O}}
+\def\R{{I\!\!R}}
+\def\C{{I\!\!\!\!C}}
+\def\N{{I\!\!N}}
+
+\def\P{\mbox{\msymb P}}
+
+
+%\parskip 0.1in
+\pagenumbering{arabic}    %  Start using 1,2,... as page numbers.
+\pagestyle{plain}         %  Page numbers in middle bottom of page.
+%\setcounter{page}{80}  % XXXXXXXXXXXXXXXXX
+%\setcounter{theorem}{5} % XXXXXXXXXXXXXXXXX
+%\setcounter{definition}{10} % XXXXXXXXXXXXXXXXX
+
+\parindent 0in
+
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\begin{table}\centering
+\begin{tabular*}{6.15in}{@{\extracolsep{\fill}}|llr|} \hline
+Statistical Learning and Data Mining 1 & \hspace*{0.5 in} & Spring 2020 \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Name:} Michael Huber} \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Submission Date:} 02/17/2020} \\
+ & & \\
+\multicolumn{3}{|c|}{
+Homework 2 (01/31/2020)} \\
+ & & \\
+\multicolumn{3}{|c|}{
+100 Points --- Due Monday 02/17/2020 (via Canvas by 11:59pm)} \\
+\hline
+\end{tabular*}
+\end{table}
+
+
+~ \newpage
+
+\begin{enumerate}
+
+\item \underline{\bf Question 1:}
+This question concerns Fisher’s iris data, one of the most well-known and, perhaps, overused
+datasets. I have placed the data (“Iris.csv”) on the Canvas site for the class. For this
+homework, I would like you to apply linear and quadratic discriminant analysis to see if the
+measured values or petal length and width and sepal length and width can be used to
+discriminate among the three species of iris.
+
+
+\begin{enumerate}
+\item Summarize the four measured variables for the three types of iris. Are the data
+  approximately normal, and do they look like they have the same covariance matrix for
+  all 3 species? \\
+  
+
+<<echo=FALSE>>=
+library(MASS)
+library(glue)
+library(caret)
+library(verification)
+library(heplots)
+@
+
+<<echo=FALSE>>=
+iris <- read.csv("../../Data/Iris.csv")
+setosa <- iris[iris$Species == "setosa", 1:4]
+versicolor <- iris[iris$Species == "versicolor", 1:4]
+virginica <- iris[iris$Species == "virginica", 1:4]
+@
+
+<<fig=TRUE, echo=FALSE, width=5,height=6>>=
+par(mfrow=c(4,3), mar=c(2,1,2.5,1))
+hist(setosa$SepalLength,
+     main = 'Setosa Sepal Length \n Histogram',
+     xlab = 'Setosa Sepal Length')
+qqnorm(setosa$SepalLength,
+       main = 'Setosa Sepal Length \n Quantile Plot')
+boxplot(setosa$SepalLength,
+        main = 'Setosa Sepal Length \n Box Plot',
+        ylab = 'Setosa Sepal Length')
+hist(setosa$SepalWidth,
+     main = 'Setosa Sepal Width \n Histogram',
+     xlab = 'Setosa Sepal Width')
+qqnorm(setosa$SepalWidth,
+       main = 'Setosa Sepal Width \n Quantile Plot')
+boxplot(setosa$SepalWidth,
+        main = 'Setosa Sepal Width \n Boxplot',
+        ylab = 'Setosa Sepal Width')
+hist(setosa$PetalLength,
+     main = 'Setosa Petal Length \n Histogram',
+     xlab = 'Setosa Petal Length')
+qqnorm(setosa$PetalLength,
+       main = 'Setosa Petal Length \n Quantile Plot')
+boxplot(setosa$PetalLength,
+        main = 'Setosa Petal Length \n Box Plot',
+        ylab = 'Setosa Petal Length')
+hist(setosa$PetalWidth,
+     main = 'Setosa Petal Width \n Histogram',
+     xlab = 'Setosa Petal Width')
+qqnorm(setosa$PetalWidth,
+       main = 'Setosa Petal Width \n Quantile Plot')
+boxplot(setosa$PetalWidth,
+        main = 'Setosa Petal Width \n Box Plot',
+        ylab = 'Setosa Petal Width')
+@
+
+
+\underline{\bf Setosa:} This species is approximately normal for the variables Sepal Width,
+Sepal Length, and Petal Length. In looking at the histogram for Petal Width Setosa appears
+to have a right skew to the data.\\
+
+
+<<fig=TRUE, echo=FALSE, width=5,height=6>>=
+par(mfrow=c(4,3), mar=c(2,1,2.5,1))
+hist(versicolor$SepalLength,
+     main = 'Versicolor Sepal Length \n Histogram',
+     xlab = 'Versicolor Sepal Length')
+qqnorm(versicolor$SepalLength,
+       main = 'Versicolor Sepal Length \n Quantile Plot')
+boxplot(versicolor$SepalLength,
+        main = 'Versicolor Sepal Length \n Box Plot',
+        ylab = 'Versicolor Sepal Length')
+hist(versicolor$SepalWidth,
+     main = 'Versicolor Sepal Width \n Histogram',
+     xlab = 'Versicolor Sepal Width')
+qqnorm(versicolor$SepalWidth,
+       main = 'Versicolor Sepal Width \n Quantile Plot')
+boxplot(versicolor$SepalWidth,
+        main = 'Versicolor Sepal Width \n Boxplot',
+        ylab = 'Versicolor Sepal Width')
+hist(versicolor$PetalLength,
+     main = 'Versicolor Petal Length \n Histogram',
+     xlab = 'Versicolor Petal Length')
+qqnorm(versicolor$PetalLength,
+       main = 'Versicolor Petal Length \n Quantile Plot')
+boxplot(versicolor$PetalLength,
+        main = 'Versicolor Petal Length \n Box Plot',
+        ylab = 'Versicolor Petal Length')
+hist(versicolor$PetalWidth,
+     main = 'Versicolor Petal Width \n Histogram',
+     xlab = 'Versicolor Petal Width')
+qqnorm(versicolor$PetalWidth,
+       main = 'Versicolor Petal Width \n Quantile Plot')
+boxplot(versicolor$PetalWidth,
+        main = 'Versicolor Petal Width \n Box Plot',
+        ylab = 'Versicolor Petal Width')
+@
+
+\underline{\bf Versicolor:} For this species of Iris the variables of Sepal Width, Sepal Length, 
+and Petal Length are approximately normal. While the Petal Width appears to be closer to normal 
+than the Setosa species, but there does still appear to be a large spike near the left side of the histogram. \\
+
+<<fig=TRUE, echo=FALSE, width=5,height=6>>=
+par(mfrow=c(4,3), mar=c(2,1,2.5,1))
+hist(virginica$SepalLength,
+     main = 'Virginica Sepal Length \n Histogram',
+     xlab = 'Virginica Sepal Length')
+qqnorm(virginica$SepalLength,
+       main = 'Virginica Sepal Length \n Quantile Plot')
+boxplot(virginica$SepalLength,
+        main = 'Virginica Sepal Length \n Box Plot',
+        ylab = 'Virginica Sepal Length')
+hist(virginica$SepalWidth,
+     main = 'Virginica Sepal Width \n Histogram',
+     xlab = 'Virginica Sepal Width')
+qqnorm(virginica$SepalWidth,
+       main = 'Virginica Sepal Width \n Quantile Plot')
+boxplot(virginica$SepalWidth,
+        main = 'Virginica Sepal Width \n Boxplot',
+        ylab = 'Virginica Sepal Width')
+hist(virginica$PetalLength,
+     main = 'Virginica Petal Length \n Histogram',
+     xlab = 'Virginica Petal Length')
+qqnorm(virginica$PetalLength,
+       main = 'Virginica Petal Length \n Quantile Plot')
+boxplot(virginica$PetalLength,
+        main = 'Virginica Petal Length \n Box Plot',
+        ylab = 'Virginica Petal Length')
+hist(virginica$PetalWidth,
+     main = 'Virginica Petal Width \n Histogram',
+     xlab = 'Virginica Petal Width')
+qqnorm(virginica$PetalWidth,
+       main = 'Virginica Petal Width \n Quantile Plot')
+boxplot(virginica$PetalWidth,
+        main = 'Virginica Petal Width \n Box Plot',
+        ylab = 'Virginica Petal Width')
+@
+
+\underline{\bf Virginica:} For this species of Iris the variables of Sepal Width, 
+Sepal Length, and Petal Length are approximately normal. While the Petal Width appears to 
+be almost a normal distribution but it appears to be slightly bimodal in its distribution. \\
+
+\newpage
+
+<<echo=FALSE>>=
+setosa.cov <- cov(setosa)
+versicolor.cov <- cov(versicolor)
+virginica.cov <- cov(virginica)
+print('Setosa Covariance Matrix')
+setosa.cov
+print('Versicolor Covariance Matrix')
+versicolor.cov
+print('Virginica Covariance Matrix')
+virginica.cov
+@
+
+\underline{\bf Summary of Covariance Matrices:} The covariance matrices of the 3 different Iris
+species appear to all differ from one another. Some of the corresponding values across matrices appear
+to be close in value to one another but other parts of the matrices have very different values.\\
+
+\newpage
+
+\item Test to determine whether the covariance matrices for the three species may be pooled.\\
+The hypotheses are defined as  \\ 
+H0: The Covariance matrices are homogeneous \\ 
+H1: The Covariance matrices are not homogeneous 
+
+<<echo=FALSE>>=
+res <- boxM(iris[, 1:4],iris[, "Species"])
+summary(res)
+@
+
+
+
+\underline{\bf Conclusion:}
+Where the p-value for the chi-squared test is so small. We would reject the null hypothesis
+that the covariance matrices are homogenous which means the covariance matrices for the 3 
+species cannot be pooled. Instead we would use the within covariance matrices in the discriminant 
+function. This means that mathematically we would choose QDA for our analysis since LDA pools
+the values. But we will test LDA below to see how it performs.\\
+
+
+
+\item Apply both LDA or QDA. Obtain the cross-validated confusion matrices and accuracy
+or error rates (by species and overall).
+
+\begin{figure}[ht]
+\centering{\includegraphics[width=5in]{conf_matrix.png}}
+\caption{\label{conf_matrix}
+All confusion matrices included in this document will be formatted in the following way unless stated otherwise.
+}
+\end{figure}
+
+
+\begin{enumerate}
+\item \bf LDA \\
+<<echo=FALSE>>=
+# If you do LDA it pools the data so I will only want to include QDA in my output.
+iris.lda.cv = lda(Species ~ ., CV = TRUE, data = iris)
+iris.lda.conf.mat <- table(predicted = iris.lda.cv$class, actual = iris$Species)
+confusionMatrix(iris.lda.conf.mat)
+@
+\underline{\bf LDA Accuracy by Species and Overall:}\\
+Setosa: 1.0 \\
+Versicolor: 0.98  \\
+Verginica: 0.9750  \\
+Overall: 0.98 \\
+
+\item \bf QDA \\
+<<echo=FALSE>>=
+iris.qda.cv=qda(Species ~ ., CV=TRUE,data=iris)
+iris.qda.conf.mat <- table(predicted = iris.qda.cv$class, actual = iris$Species)
+confusionMatrix(iris.qda.conf.mat)
+@
+\underline{\bf QDA Accuracy by Species and Overall:}\\
+Setosa: 1.0 \\
+Versicolor: 0.9650  \\
+Verginica: 0.9750  \\
+Overall: 0.9733
+
+\end{enumerate}
+
+\underline{\bf Summary of LDA and QDA:} Even though the test from b. would have us conclude that the
+data should not be pooled and that we would do better using QDA over LDA. We can see from the results
+of actually running the test that LDA performs slightly better than QDA when we comapare their accuracy
+scores. \\
+
+
+
+\item Determine whether some of the measured variables are redundant and can be removed.
+
+\begin{enumerate}
+\item \bf Less Petal Width QDA \\
+<<echo=FALSE>>=
+iris.qda.cv1 <- qda(Species ~ SepalLength+SepalWidth+PetalLength, CV=TRUE,data=iris)
+iris.qda.conf.mat1 <- table(predicted = iris.qda.cv1$class, actual = iris$Species)
+confusionMatrix(iris.qda.conf.mat1)
+@
+
+\underline{Conclusion:} When I remove the variable PetalWidth the overall accuracy decreases to 94.67\%. 
+The sensitivity and specificity for Versicolor and Virginica are also decreased. But they stay the same
+for Setosa.\\
+
+
+\item \bf Less PetalLength QDA \\
+<<echo=FALSE>>=
+iris.qda.cv2 <- qda(Species ~ SepalLength+SepalWidth+PetalWidth, CV=TRUE,data=iris)
+iris.qda.conf.mat2 <- table(predicted = iris.qda.cv2$class, actual = iris$Species)
+confusionMatrix(iris.qda.conf.mat2)
+@
+
+\underline{Conclusion:} When I remove the variable PetalLength the overall accuracy decreases to 94.67\% as well. 
+The sensitivity and specificity for Versicolor and Virginica are also decreased. But they stay the same
+for Setosa.\\
+
+
+\item \bf Less Sepal Width QDA\\
+<<echo=FALSE>>=
+iris.qda.cv3 <- qda(Species ~ SepalLength+PetalWidth+PetalLength, CV=TRUE,data=iris)
+iris.qda.conf.mat3 <- table(predicted = iris.qda.cv3$class, actual = iris$Species)
+confusionMatrix(iris.qda.conf.mat3)
+@
+
+\underline{Conclusion:} When I remove SepalWidth the overall accuracy is the same value as when all 4 variables
+are present in QDA. It also looks like it increases the accuracy of predicting the Virginica up to 97\% but it lowers 
+the prediction accuracy of the Versicolor from 97.49\% down to 97\% accuracy. The specificity for Virginica goes up 
+1\% but they drop in all other places except for Setosa stays the same.\\ 
+
+
+\item \bf Less Sepal Length QDA\\
+<<echo=FALSE>>=
+iris.qda.cv4 <- qda(Species ~ SepalWidth+PetalWidth+PetalLength, CV=TRUE,data=iris)
+iris.qda.conf.mat4 <- table(predicted = iris.qda.cv4$class, actual = iris$Species)
+confusionMatrix(iris.qda.conf.mat4)
+@
+
+\underline{Conclusion:} Removing the variable SepalLength lowers the overall accuracy slightly and it lowers 
+the accuracy of predicting the Versicolor and Virginica species. Overall it looks like you could remove the 
+SepalWidth Variable and still have near to the same prediction results as you do with all four variables using QDA. \\
+
+
+\item \bf Less Petal Width LDA \\
+<<echo=FALSE>>=
+iris.lda.cv1 <- lda(Species ~ SepalLength+SepalWidth+PetalLength, CV=TRUE,data=iris)
+iris.lda.conf.mat1 <- table(predicted = iris.lda.cv1$class, actual = iris$Species)
+confusionMatrix(iris.lda.conf.mat1)
+@
+
+\underline{Conclusion:} When I remove the variable PetalWidth from the LDA model the overall accuracy decreases to 96\%. \\
+
+\item \bf Less PetalLength LDA \\
+<<echo=FALSE>>=
+iris.lda.cv2 <- lda(Species ~ SepalLength+SepalWidth+PetalWidth, CV=TRUE,data=iris)
+iris.lda.conf.mat2 <- table(predicted = iris.lda.cv2$class, actual = iris$Species)
+confusionMatrix(iris.lda.conf.mat2)
+@
+
+\underline{Conclusion:} When I remove the variable PetalLength from the LDA model the overall accuracy decreases to 94.67\% which
+is the same as the QDA model. \\
+
+
+\item \bf Less Sepal Width LDA\\
+<<echo=FALSE>>=
+iris.lda.cv3 <- lda(Species ~ SepalLength+PetalWidth+PetalLength, CV=TRUE,data=iris)
+iris.lda.conf.mat3 <- table(predicted = iris.lda.cv3$class, actual = iris$Species)
+confusionMatrix(iris.lda.conf.mat3)
+@
+
+\underline{Conclusion:} When I remove SepalWidth from the LDA model the overall accuracy is the same value as when all 4 variables
+are present in QDA.
+
+
+\item \bf Less Sepal Length LDA\\
+<<echo=FALSE>>=
+iris.lda.cv4 <- lda(Species ~ SepalWidth+PetalWidth+PetalLength, CV=TRUE,data=iris)
+iris.lda.conf.mat4 <- table(predicted = iris.lda.cv4$class, actual = iris$Species)
+confusionMatrix(iris.lda.conf.mat4)
+@
+
+\underline{Conclusion:} Removing the variable SepalLength lowers the overall accuracy to 96.67\%. So in the end it does not
+look like removing any of the variables outperforms the accuracy achieved in the LDA model when all 4 variables are present.
+
+
+
+\end{enumerate}
+
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 2:}
+I have placed a dataset called “Nest.csv” on the Canvas site for the class. This dataset contains
+data on nest sites for three bird species—(Northern) Flicker, (Mountain) Chickadee, and (Rednaped) Sapsucker—plus 
+a bunch of sites at which none of these birds are nesting. The variable Nest is the response or grouping variable. 
+Species indicates the species of nesting bird, and StandType is a dummy variable coded as 0 for pure aspen forest 
+and 1 for mixed aspen and conifer.
+
+
+\begin{enumerate}
+\item Carry out numerical and graphical summaries of all the predictor variables except StandType. Are the variables 
+approximately normal in distribution? If not, apply some transformation(s) to “improve” the distributions of these 
+variables.
+
+<<fig=TRUE, echo=FALSE, width=5,height=6>>=
+nest <- read.csv("../../Data/Nest.csv")
+
+par(mfrow = c(4, 3), mar=c(2,1,2.5,1))
+
+# Create the loop.vector (all the columns)
+loop.vector <- 3:6
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- nest[,i]
+  col.name <- colnames(nest)[i]
+  # Plot histogram of x
+  hist(x,
+       main = glue('Nest {col.name} \n Histogram'),
+       xlab = "Scores")
+    
+    qqnorm(x,
+       main = glue('Nest {col.name} \n Quantile Plot'))
+    
+    boxplot(x,
+        main = glue('Nest {col.name} \n Box Plot'),
+        ylab = glue('Nest {col.name} Length'))
+}
+@
+
+<<fig=TRUE, echo=FALSE, width=5,height=8>>=
+par(mfrow = c(6, 3), mar=c(2,1,2.5,1))
+
+# Create the loop.vector (all the columns)
+loop.vector <- 7:12
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- nest[,i]
+  col.name <- colnames(nest)[i]
+  # Plot histogram of x
+  hist(x,
+       main = glue('Nest {col.name} \n Histogram'),
+       xlab = "Scores")
+    
+    qqnorm(x,
+       main = glue('Nest {col.name} \n Quantile Plot'))
+    
+    boxplot(x,
+        main = glue('Nest {col.name} \n Box Plot'),
+        ylab = glue('Nest {col.name} Length'))
+}
+@
+
+~\newpage
+
+<<echo=FALSE>>=
+summary(nest)
+@
+
+\underline{Summary:}All the data appears to be heavily skewed to the right. For this reason I will perform
+a log transformation and then see if the transformed data is closer to to a normal distribution.
+
+<<echo=FALSE>>=
+nest.logt <- log(nest[,3:12]+1)
+nest.log.df <- cbind(nest[,1:2], nest.logt, StandType = nest[, 13])
+@
+
+<<fig=TRUE, echo=FALSE, width=5,height=8>>=
+par(mfrow = c(6, 3), mar=c(2,1,2.5,1)) 
+
+# Create the loop.vector (all the columns)
+loop.vector <- 3:8
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- nest.log.df[,i]
+  col.name <- colnames(nest.log.df)[i]
+  # Plot histogram of x
+  hist(x,
+       main = glue('Nest {col.name} \n Histogram'),
+       xlab = "Scores")
+    
+    qqnorm(x,
+       main = glue('Nest {col.name} \n Quantile Plot'))
+    
+    boxplot(x,
+        main = glue('Nest {col.name} \n Box Plot'),
+        ylab = glue('Nest {col.name} Length'))
+}
+@
+
+<<fig=TRUE, echo=FALSE, width=5,height=7.5>>=
+par(mfrow = c(6, 3), mar=c(2,1,2.5,1)) 
+
+# Create the loop.vector (all the columns)
+loop.vector <- 9:12
+
+for (i in loop.vector) { # Loop over loop.vector
+
+  # store data in column.i as x
+  x <- nest.log.df[,i]
+  col.name <- colnames(nest.log.df)[i]
+  # Plot histogram of x
+  hist(x,
+       main = glue('Nest {col.name} \n Histogram'),
+       xlab = "Scores")
+    
+    qqnorm(x,
+       main = glue('Nest {col.name} \n Quantile Plot'))
+    
+    boxplot(x,
+        main = glue('Nest {col.name} \n Box Plot'),
+        ylab = glue('Nest {col.name} Length'))
+}
+@
+
+\underline{Transformation Summary:} After applying the transformations to my data it is still not perfectly
+normal but it is much closer to normal than it was before. But you can still see a grouping of data down 
+near zero in many of the variables. PctShrubCover also appears to still be skewed to the right.\\
+
+\newpage
+
+
+\item Fit LDA and QDA to all the data (with the transformed predictor variables) treating the
+three birds as a single species. Compare the accuracies or error rates of your classifications 
+using cross-validation. \\
+
+\begin{enumerate}
+
+\item\underline{\bf LDA Confusion Matrix} \\
+<<echo=FALSE>>=
+nest.log.lda <- lda(Nest ~ . - Species, CV = TRUE, data = nest.log.df)
+nest.log.conf.mat <- table(predicted = nest.log.lda$class, actual = nest.log.df$Nest)
+confusionMatrix(nest.log.conf.mat)
+@
+
+\item\underline{\bf QDA Confusion Matrix} \\
+<<echo=FALSE>>=
+nest.log.qda <- qda(Nest ~ . - Species, CV = TRUE, data = nest.log.df)
+nest.log.conf.mat2 <- table(predicted = nest.log.qda$class, actual = nest.log.df$Nest)
+confusionMatrix(nest.log.conf.mat2)
+@
+
+\underline{\bf Comparison of LDA to QDA on Nest data:} In this instance QDA and LDA perform very similar in
+their classifications. When I run them through different times the LDA and QDA actually change which one is 
+performing better. The first time I ran the LDA it performed at about 80\% While the QDA was at 79\%. 
+The Second time I ran the tests LDA dropped to 78.40\% and QDA went up to 81.22\%. So they appear to be very 
+similar in classifying when all the species are grouped together. Another interesting thing we can see between
+the two models is they both have a Specificity of 82.24\% but they have very different Sensitivity values. 
+QDA comes in about 6\% higher than the value for LDA.\\
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item For each bird species separately, construct a dataset that comprises the data for all
+the nest sites for that species, and all the non-nest sites. Now, refit LDA and QDA,
+for each bird species separately and compare the results for the different methods.
+
+<<echo=FALSE>>=
+chickadee <- droplevels(subset( nest.log.df, 
+                       Species == "Chickadee" | Species == "Non-nest",
+                       select = -Species))
+flicker <- droplevels(subset( nest.log.df, 
+                       Species == "Flicker" | Species == "Non-nest",
+                       select = -Species))
+sapsucker <- droplevels(subset( nest.log.df, 
+                       Species == "Sapsucker" | Species == "Non-nest",
+                       select = -Species))
+@
+
+\begin{enumerate}
+
+\item\underline{\bf Chickadee LDA and QDA}\\
+
+\underline{\bf Chickadee LDA:}\\
+<<echo=FALSE>>=
+lda.nest.chickadee <- lda(Nest ~ ., CV = TRUE, data = chickadee)
+lda.chickadee <- table(predicted = lda.nest.chickadee$class, actual = chickadee$Nest)
+print("Chickadee & Non-Nest LDA")
+confusionMatrix(lda.chickadee)
+@
+
+\underline{\bf Chickadee QDA:}\\
+<<echo=FALSE>>=
+qda.nest.chickadee <- qda(Nest ~ ., CV = TRUE, data = chickadee)
+qda.chickadee <- table(predicted = qda.nest.chickadee$class, actual = chickadee$Nest)
+print("Chickadee & Non-Nest QDA")
+confusionMatrix(qda.chickadee)
+@
+
+\underline{\bf Chickadee Summary:} Between the LDA and QDA being run on the Chickadee data they appear to be
+running at around the same accuracy. LDA performs with an accuracy of 
+80.41\% while the QDA has an accuracy of 79.73\%. Both LDA and QDA are very close in accuracy on the
+Chickadee data set but LDA did have a higher accuracy percentage on this data. We can also see that the
+Sensitivity values are about 1\% apart but QDA has higher sensitivity at 86.79\% which is interesting since
+LDA outperforms QDA in accuracy. For the Specificity, both models are in the 60\% area. But LDA outperforms
+QDA by about 3\%. \\
+
+
+\item\underline{\bf Flicker LDA and QDA}\\
+
+\underline{\bf Flicker LDA:}\\
+<<echo=FALSE>>=
+lda.nest.flicker <- lda(Nest ~ ., CV = TRUE, data = flicker)
+lda.flicker <- table(predicted = lda.nest.flicker$class, actual = flicker$Nest)
+print("Flicker & Non-Nest LDA")
+confusionMatrix(lda.flicker)
+@
+
+\underline{\bf Flicker QDA:}\\
+<<echo=FALSE>>=
+qda.nest.flicker <- qda(Nest ~ ., CV = TRUE, data = flicker)
+qda.flicker <- table(predicted = qda.nest.flicker$class, actual = flicker$Nest)
+print("Flicker & Non-Nest QDA")
+confusionMatrix(qda.flicker)
+@
+
+\underline{\bf Flicker Summary:} For the Flicker dataset the QDA does appear to perform a littler better
+than the LDA. Here the LDA has an accuracy of 85.27\% while QDA has an accuracy of 89.15\%. So the QDA 
+has accuracy in this instance that is around 4\% better than the LDA. Another thing we can see about the
+models is they both have the same Specificity score at 47.83\% which is not good at all. But they also both
+score high with Sensitivity. QDA comes in at 98.11\% while LDA comes in at 93.40\%.\\
+
+\item\underline{\bf Sapsucker LDA and QDA}\\
+
+\underline{\bf Sapsucker LDA:}\\
+<<echo=FALSE>>=
+lda.nest.sapsucker <- lda(Nest ~ ., CV = TRUE, data = sapsucker)
+lda.sapsucker <- table(predicted = lda.nest.sapsucker$class, actual = sapsucker$Nest)
+print("Sapsucker & Non-Nest LDA")
+confusionMatrix(lda.sapsucker)
+@
+
+\underline{\bf Sapsucker QDA:}\\
+<<echo=FALSE>>=
+qda.nest.sapsucker <- qda(Nest ~ ., CV = TRUE, data = sapsucker)
+qda.sapsucker <- table(predicted = qda.nest.sapsucker$class, actual = sapsucker$Nest)
+print("Sapsucker & Non-Nest QDA")
+confusionMatrix(qda.sapsucker)
+@
+
+\underline{\bf Sapsucker Summary:} Here again LDA and QDA are very close in comparison. The LDA for
+this iteration is slightly better at 81.76\% while QDA is at 80.41\% accuracy. But again they are so 
+close to one another that they are very comparable in performance. But in this instance LDA did out
+perform QDA in Accuracy. When we look at sensitivity we can see that QDA does better than LDA at 86.79\%
+coming in about 1\% above LDA. LDA outperforms QDA though in Specificity, it comes in about 7\% higher
+at 71.43\%. \\
+
+
+\end{enumerate}
+
+\end{enumerate}
+
+\newpage
+
+\item \underline{\bf Question 3:}
+
+\begin{enumerate} 
+
+\item Fit a logistic regression model with all the data. Compare the cross-validated
+accuracies or error rates with those for LDA and QDA that you obtained in the previous
+question. \\
+
+<<echo=FALSE>>=
+# Cross validated Logistic Regression
+nest.lr.xval=rep(0,nrow(nest.log.df))
+xvs=rep(1:10,length=nrow(nest.log.df))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=nest.log.df[xvs!=i,]
+    test=nest.log.df[xvs==i,]
+    glub=glm(Nest~ . - Species,family=binomial,data=train)
+    nest.lr.xval[xvs==i]=predict(glub,test,type="response")
+}
+nest.lr.cv.cfm <- table(predicted = round(nest.lr.xval), actual = nest.log.df$Nest)
+confusionMatrix(nest.lr.cv.cfm)
+@
+
+\underline{\bf Comparison between question 2 and 3 results:} The accuracy rate for the cross validated
+logistic regression model on all the data is 79.34\%. While that for LDA on all the data was 78.40\% 
+and QDA had an accuracy of 81.22\%. So for the given iteration it appears that QDA performed the best 
+but again the accuracy between the three methods are very close together. Looking at the Sensitivity 
+between the three models, LDA and the Logistic Regression perform the same at 74.53\%, QDA does the best
+at 80.19\%. Looking at the Specificity LDA and QDA tie for the best performance at 82.24\%, Logistic Regression
+comes in at 81.31\%\\
+
+
+\item Now apply some variable selection procedure (in logistic regression) and identify variables 
+important to the classification. By how much did the cross-validated accuracies/error rates change?
+
+<<echo=FALSE>>=
+nest.lr2.xval = rep(0, nrow(nest.log.df))
+xvs=rep(1:10,length=nrow(nest.log.df))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=nest.log.df[xvs!=i,]
+    test=nest.log.df[xvs==i,]
+    glub=step(glm(Nest~ . - Species,family=binomial,data=train), trace = 0)
+    nest.lr2.xval[xvs==i]=predict(glub,test,type="response")
+}
+nest.lr2.tab <- table(predicted = round(nest.lr2.xval), actual = nest.log.df$Nest)
+confusionMatrix(nest.lr2.tab)
+@
+
+\underline{\bf Summary Variable Selection:} Using the variable selection the accuracy of the model
+increased from 78.4\% up to 79.34\%. So the accuracy did increase but it did not increase significantly.
+The variables used in the final model were, "NumTree9to15in", "NumTree6to9in", "NumConifer", "NumDownSnags", 
+"NumTreelt1in" and "NumTree3to6in"\\
+
+\item Repeat part a. using the datasets for the individual bird species.
+
+\begin{enumerate}
+
+\item \underline{\bf Chickadee Cross Validated Logistic Regression}\\
+
+<<echo=FALSE>>=
+# Cross validated Logistic Regression
+chickadee.lr.xval=rep(0,nrow(chickadee))
+xvs=rep(1:10,length=nrow(chickadee))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=chickadee[xvs!=i,]
+    test=chickadee[xvs==i,]
+    glub=glm(Nest~ .,family=binomial,data=train)
+    chickadee.lr.xval[xvs==i]=predict(glub,test,type="response")
+}
+chickadee.lr.cv.cfm <- table(predicted = round(chickadee.lr.xval), 
+                             actual = chickadee$Nest)
+confusionMatrix(chickadee.lr.cv.cfm)
+@
+
+\underline{\bf Comparison of Chickadee Logsitic Regression vs. LDA and QDA:} Logistic Regression has an 
+accuracy of 79.06\% on the Chickadee data set, while on the same data set LDA got an accuracy of 80.41\%
+and QDA got an accuracy of 79.73\%. So in this case LDA and QDA both outperformed logistic regression, with
+LDA performing the best out of all the models. Looking at the Sensitivity Logistic Regression scored the best
+at 87.74\% Then QDA got a score of 86.79\% and QDA got a score of 85.85\%. All the models performed poorly in
+the Specificity score. LDA was the highest at 66.67\% then QDA and logistic regression tied at 61.90\%.\\
+
+
+\item \underline{\bf Flicker Cross Validated Logistic Regression}\\
+
+<<echo=FALSE>>=
+flicker.lr.xval=rep(0,nrow(flicker))
+xvs=rep(1:10,length=nrow(flicker))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=flicker[xvs!=i,]
+    test=flicker[xvs==i,]
+    glub=glm(Nest~ .,family=binomial,data=train)
+    flicker.lr.xval[xvs==i]=predict(glub,test,type="response")
+}
+flicker.lr.cv.cfm <- table(predicted = round(flicker.lr.xval), 
+                             actual = flicker$Nest)
+confusionMatrix(flicker.lr.cv.cfm)
+@
+
+\underline{\bf Comparison of Flicker Logsitic Regression vs. LDA and QDA:} Flicker LDA had an accuracy of 85.27\% while
+QDA had an accuracy of 89.15\% and logistic regression had an accuracy of 82.17\%. So again both LDA and QDA outperform 
+logistic regression with their accuracy percentage. But in this instance QDA outperformed the other two models. Looking
+at the sensitivy QDA also scored the best coming in 98.11\% while LDA came in at 93.40\% and Logistic Regession came in 
+at 92.45\%. For specificity LDA and QDA tied at 47.83\% both outperforming logistic regression which came in at 30.43\%.\\
+
+\item \underline{\bf Sapsucker Cross Validated Logistic Regression}\\
+
+<<echo=FALSE>>=
+# Cross validated Logistic Regression
+sapsucker.lr.xval=rep(0,nrow(sapsucker))
+xvs=rep(1:10,length=nrow(sapsucker))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=sapsucker[xvs!=i,]
+    test=sapsucker[xvs==i,]
+    glub=glm(Nest~ .,family=binomial,data=train)
+    sapsucker.lr.xval[xvs==i]=predict(glub,test,type="response")
+}
+sapsucker.lr.cv.cfm <- table(predicted = round(sapsucker.lr.xval), 
+                             actual = sapsucker$Nest)
+# class.sum(lichenLO$LobaOreg,Loreg.lr.xval)
+confusionMatrix(sapsucker.lr.cv.cfm)
+@
+
+
+\underline{\bf Comparison of Sapsucker Logsitic Regression vs. LDA and QDA:} Sapsucker LDA had an accuracy of 81.76\% while
+QDA had an accuracy of 80.41\% and logistic regression got an accuracy percentage of 80.41\%. In this instance logistic regression
+performed just as well as QDA. In the end LDA was the best performing model with an accuracy of 81.76\%. But all of these models
+accuracy scores are very close together. Looking at Sensitivity Logistic Regression tied with QDA for best performance at 86.79\% 
+LDA got a score of 85.85\%. For Specificity Logistic Regression tied with LDA this time for the highest score at 71.43\% while
+QDA got a score of 64.29\%.\\
+
+
+\end{enumerate}
+
+\item Repeat part b. using the datasets for the individual bird species. Are there variables
+that are in the models for 2 or 3 of the species?
+
+\begin{enumerate}
+
+
+\item\underline{\bf Chickadee Variable Selection and Confusion Matrix:} \\
+<<echo=FALSE>>=
+chickadee.lr2.xval = rep(0, nrow(chickadee))
+xvs=rep(1:10,length=nrow(chickadee))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=chickadee[xvs!=i,]
+    test=chickadee[xvs==i,]
+    glub=step(glm(Nest~ .,family=binomial,data=train), trace = 0)
+    chickadee.lr2.xval[xvs==i]=predict(glub,test,type="response")
+}
+chickadee.lr2.tab <- table(predicted = round(chickadee.lr2.xval), actual = chickadee$Nest)
+confusionMatrix(chickadee.lr2.tab)
+@
+
+
+\item\underline{\bf Flicker Variable Selection and Confusion Matrix:} \\
+<<echo=FALSE>>=
+chickadee.lr2.xval = rep(0, nrow(chickadee))
+xvs=rep(1:10,length=nrow(chickadee))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=chickadee[xvs!=i,]
+    test=chickadee[xvs==i,]
+    glub=step(glm(Nest~ .,family=binomial,data=train), trace = 0)
+    chickadee.lr2.xval[xvs==i]=predict(glub,test,type="response")
+}
+chickadee.lr2.tab <- table(predicted = round(chickadee.lr2.xval), actual = chickadee$Nest)
+confusionMatrix(chickadee.lr2.tab)
+@
+
+\item\underline{\bf Sapsucker Variable Selection and Confusion Matrix:} \\
+<<echo=FALSE>>=
+sapsucker.lr2.xval = rep(0, nrow(sapsucker))
+xvs=rep(1:10,length=nrow(sapsucker))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=sapsucker[xvs!=i,]
+    test=sapsucker[xvs==i,]
+    glub=step(glm(Nest~ .,family=binomial,data=train), trace = 0)
+    sapsucker.lr2.xval[xvs==i]=predict(glub,test,type="response")
+}
+sapsucker.lr2.tab <- table(predicted = round(sapsucker.lr2.xval), actual = sapsucker$Nest)
+confusionMatrix(sapsucker.lr2.tab)
+@
+
+\underline{\bf Final Comparison of the Species Data sets:}\\
+\begin{itemize}
+\item Chickadee Logistic Regression Accuracy = 80.41\%; Chickadee Logistic Regression Accuracy with Variable selection = 79.05\%;
+In this instance the variable selection decreased the accuracy score from 80.41\% down to 79.05\%. An decrease of 1.34\%.
+The sensitivity stayed the same at 89.62\%. While the specificity decreased from 57.14\% down to 52.38\%.
+\item Flicker Logistic Regression Accuracy = 81.4\%; Flicker Logistic Regression Accuracy with variable selection = 76.35\% ;
+In this instance the variable selection decreased the accuracy of the model from 81.4\% down to 76.35\%. Sensitivity decreased
+from 92.45\% down to 86.79\%. While Specificity increased from 30.43\% up to 50\%.
+\item Sapsucker Logistic Regression Accuracy = 82.43\%; Sapsucker Logistic Regression Accuracy with variable selection = 84.46\%
+In this instance the variable selection increased the accuracy of the model about 2\%. The sensitivity also increased going from
+86.79\% up to 88.68\%. Specificity also increased from 71.43\% up to 73.81\%.
+\item "NumTree9to15in", "NumConifer" appears in both the Flicker data set and the Chickadee
+data set. "NumTreelt1in", "NumTree3to6in" appears in all 3 of the data sets. So we can assume that these are the most
+important variables that need to be used in the prediction of the models.
+\end{itemize}
+
+
+
+\end{enumerate}
+
+\end{enumerate}
+
+\end{enumerate}
+
+
+
+\end{document}
+

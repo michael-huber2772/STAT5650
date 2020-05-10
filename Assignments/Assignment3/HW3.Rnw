@@ -1,0 +1,675 @@
+\documentclass[12pt,letterpaper,final]{article}
+
+\usepackage{Sweave}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{textcomp}
+\usepackage{wasysym}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.15in}
+%\setlength{\topmargin}{0.5in}
+\setlength{\textheight}{22cm}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\parskip}{5pt plus 2pt minus 3pt}
+
+\def\thefootnote{\fnsymbol{footnote}}
+\setcounter{footnote}{1}
+
+\renewcommand{\baselinestretch}{1.2}
+\renewcommand{\labelenumi}{(\roman{enumi})}
+
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+
+% to get nice proofs ...
+\newcommand{\qedsymb}{\mbox{ }~\hfill~{\rule{2mm}{2mm}}}
+\newenvironment{proof}{\begin{trivlist}
+\item[\hspace{\labelsep}{\bf\noindent Proof: }]
+}{\qedsymb\end{trivlist}}
+
+
+\newfont{\msymb}{cmsy10 scaled 1000}
+
+\def\nullset{\mbox{\O}}
+\def\R{{I\!\!R}}
+\def\C{{I\!\!\!\!C}}
+\def\N{{I\!\!N}}
+
+\def\P{\mbox{\msymb P}}
+
+
+%\parskip 0.1in
+\pagenumbering{arabic}    %  Start using 1,2,... as page numbers.
+\pagestyle{plain}         %  Page numbers in middle bottom of page.
+%\setcounter{page}{80}  % XXXXXXXXXXXXXXXXX
+%\setcounter{theorem}{5} % XXXXXXXXXXXXXXXXX
+%\setcounter{definition}{10} % XXXXXXXXXXXXXXXXX
+
+\parindent 0in
+
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\begin{table}\centering
+\begin{tabular*}{6.15in}{@{\extracolsep{\fill}}|llr|} \hline
+STAT 5650 Statistical Learning and Data Mining 1 & \hspace*{0.5 in} & Spring 2020 \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Name:} Michael Huber} \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Submission Date:} 03/13/2020} \\
+ & & \\
+\multicolumn{3}{|c|}{
+Homework 3 (03/13/2020)} \\
+ & & \\
+\multicolumn{3}{|c|}{
+100 Points --- Due Friday 03/13/2020 (via Canvas by 11:59pm)} \\
+\hline
+\end{tabular*}
+\end{table}
+
+
+~ \newpage
+
+\begin{enumerate}
+
+\item \underline{\bf Question 1:}
+This is a continuation of the analyses on the data for three bird species—(Northern) Flicker,
+(Mountain) Chickadee, and (Red-naped) Sapsucker—plus a bunch of sites at which none of
+these species of birds are nesting. In the previous homework you analyzed these data using
+logistic regression and LDA/QDA; in this question I would like you to apply k-Nearest Neighbor
+classification to the data and to compare your results with the results for LDA, QDA, and
+logistic regression.
+
+
+\begin{enumerate}
+\item Apply k-NN classification to the combined dataset for all 3 species using ‘Nest’ as the
+response variable. What value of k did you select. Compare the results of this
+classification with the results you obtained for LDA, QDA, and logistic regression in the
+previous homework.
+
+<<echo=FALSE>>=
+library(ggplot2)
+library(gridExtra)
+library(MASS)
+library(vioplot)
+
+library(klaR)
+library(verification)
+library(rpart)
+library(caret)
+library(dplyr)
+@
+
+<<echo=FALSE>>=
+kappa=function(x){
+      n=sum(x)
+      pobs=(x[1,1]+x[2,2])/n
+      pexp=(sum(x[1,])*sum(x[,1])+sum(x[2,])*sum(x[,2]))/n^2
+      kappa=(pobs-pexp)/(1-pexp)
+      t1=0
+      t2=0
+      t3=0
+      pii=x/n
+      pidot=apply(pii,1,sum)
+      pdotj=apply(pii,2,sum)
+      for(i in 1:2){
+            t1 = t1 + pii[i,i]*((1-pexp) - (1-pobs)*(pidot[i]+pdotj[i]))^2
+      }
+      t2 = pii[1,2]*(pdotj[1]+pidot[2])^2 + pii[2,1]*(pdotj[2] + pidot[1])^2
+      t3 = (pobs*pexp-2*pexp+pobs)^2
+      vhat = (t1 + t2*(1-pobs)^2 -t3)/(n*(1-pexp)^4)
+      se=sqrt(vhat)
+      return(c(kappa,se))
+}
+
+
+class.sum=function(truth,predicted){
+     xt=table(truth,round(predicted+0.000001))
+     pcc=round(100*sum(diag(xt))/sum(xt),2)
+     spec=round(100*xt[1,1]/sum(xt[1,]),2)
+     sens=round(100*xt[2,2]/sum(xt[2,]),2)
+     kap=round(kappa(xt)[1],4)
+     au=round(roc.area(truth,predicted)$A,4)
+     return(cbind(c("Percent Correctly Classified = ","Specificity = ","Sensitivity = ","Kappa =","AUC= "),c(pcc,spec,sens,kap,au)))
+     }
+@
+
+<<echo=FALSE>>=
+nest <- read.csv("../../Data/Nest.csv")
+@
+
+<<echo=FALSE>>=
+nest.logt <- log(nest[,3:12]+1)
+nest.log.df <- cbind(nest[,1:2], nest.logt, StandType = nest[, 13])
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(nest.log.df))
+Nest.knn.xval.posterior=rep(0,nrow(nest.log.df))
+
+xvs=rep(1:10,length=nrow(nest.log.df))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=nest.log.df[xvs!=i,]
+    test=nest.log.df[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=5)
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = nest.log.df$Nest, predicted = Nest.knn.xval.class)
+class.sum(nest.log.df$Nest, Nest.knn.xval.posterior)
+@
+
+\underline{Comparison of Methods:}\\
+For this KNN on the nest data setting of the value of k to 2, 4 and 5 all returned similar results,
+but 5 had the highest accuracy at 92.49\%.\\
+
+Below I have included the scores I got from the three different methods we are comparing to KNN.
+Looking at the scores below and the output of the KNN model it is clear to see that KNN outperforms
+the other three models. KNN has an accuracy over 92\%, while the other three are all around 80\%.
+The Sensitivity and Specificity of the KNN also outperform the other three models. So in this instance,
+it appears KNN would be the best model to choose for classification of this model.
+\begin{itemize}
+\item \underline{LDA:} Accuracy = 78.4\% Sensitivity = 74.53\% SPecificity = 82.24\%
+\item \underline{QDA:} Accuracy = 81.22\% Sensitivity = 80.19\% SPecificity = 82.24\%
+\item \underline{Logistic Regression:} Accuracy = 79.34\% Sensitivity = 76.42\% Specificity = 82.24\%
+\end{itemize}
+
+
+\item Now apply k-NN classification to the three datasets for the individual. What values of
+k did you select. Compare the results of this classification with the results you
+obtained for LDA, QDA, and logistic regression in the previous homework.
+
+
+
+<<echo=FALSE>>=
+chickadee <- droplevels(subset( nest.log.df, 
+                       Species == "Chickadee" | Species == "Non-nest",
+                       select = -Species))
+flicker <- droplevels(subset( nest.log.df, 
+                       Species == "Flicker" | Species == "Non-nest",
+                       select = -Species))
+sapsucker <- droplevels(subset( nest.log.df, 
+                       Species == "Sapsucker" | Species == "Non-nest",
+                       select = -Species))
+@
+
+\underline{\bf Chickadee:}
+<<echo=FALSE>>=
+# Chickadee
+dataset = chickadee
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(dataset))
+Nest.knn.xval.posterior=rep(0,nrow(dataset))
+
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=dataset[xvs!=i,]
+    test=dataset[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=3) 
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = dataset$Nest, predicted = Nest.knn.xval.class)
+class.sum(dataset$Nest, Nest.knn.xval.posterior)
+@
+
+\underline{Comparison of Methods:}  
+
+For k I chose the value 3 because it had the highest accuracy rate at 87.16\% given the seed value
+of 12345\\
+
+Looking at the results of KNN vs the other three methods it outperforms the other three by
+around 7\% in its accuracy score. However KNN does under perform in the area of Sensitivity. It comes
+in about 8\% below LDA and QDA and about 15\% under Logistic Regression. With Specificity 
+however, KNN does much better than the other three. At its high it is around 94\% while the other 
+three are in the 60\% range.
+\begin{itemize}
+\item \underline{KNN, K=3:} Accuracy = 87.16\% Sensitivity = 69.05\% Specificity = 94.34\%
+\item \underline{LDA:} Accuracy = 80.41\% Sensitivity = 85.85\% Specificity = 66.67\%
+\item \underline{QDA:} Accuracy = 79.73\% Sensitivity = 86.79\% Specificity = 61.90\%
+\item \underline{Logistic Regression:} Accuracy = 79.73\% Sensitivity = 87.74\% Specificity = 59.52\%
+\end{itemize}
+
+
+\underline{\bf Flicker:}
+<<echo=FALSE>>=
+# Flicker
+dataset = flicker
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(dataset))
+Nest.knn.xval.posterior=rep(0,nrow(dataset))
+
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=dataset[xvs!=i,]
+    test=dataset[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=4) 
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = dataset$Nest, predicted = Nest.knn.xval.class)
+class.sum(dataset$Nest, Nest.knn.xval.posterior)
+# Come back to this and fix my description to give the output of the seed values
+@
+
+\underline{Comparison of Methods:}  
+
+In deciding what value of k to use for this data set I tested numbers from 2 to 10 to see how
+the accuracy performed. All of the accuracy rates were very similar between all of the groups.
+But each time I ran the test the accuracy rate would change. But some values of k which
+were 4, 8, 9, and 10 got up over 89\% The rest staid between 84\% and 88\%. I chose 4 as the number
+for k since it had the greatest accuracy at 89.92\%.\\
+
+Comparing KNN with the other three methods, in this instance shows KNN having the greatest accuracy
+of the three. but QDA is also up in the 89\% range so QDA
+may be a suitable choice to classify this data, but you would want to look and see if you wanted to
+be more focused on the Sensitivity or Specificity for the model. If you were more concerned about
+the Sensitivity than QDA would be the model to choose since it comes in at 98.11\% while KNN comes
+in at 56.52\%. However, if you were want to focus more on Specificity then KNN would be the model
+to choose since it has a value of 97.17\%, while QDA has a value of 47.83\%.
+\begin{itemize}
+\item \underline{KNN, K=4:} Accuracy = 89.92\% Sensitivity = 56.52\% Specificity = 97.17\%
+\item \underline{LDA:} Accuracy = 85.27\% Sensitivity = 93.40\% SPecificity = 47.83\%
+\item \underline{QDA:} Accuracy = 89.15\% Sensitivity = 98.11\% SPecificity = 47.83\%
+\item \underline{Logistic Regression:} Accuracy = 82.95\% Sensitivity = 93.40\% Specificity = 34.78\%
+\end{itemize}
+
+
+\underline{\bf Sapsucker:}
+<<echo=FALSE>>=
+# Sapsucker
+dataset = sapsucker
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(dataset))
+Nest.knn.xval.posterior=rep(0,nrow(dataset))
+
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=dataset[xvs!=i,]
+    test=dataset[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=2) 
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = dataset$Nest, predicted = Nest.knn.xval.class)
+class.sum(dataset$Nest, Nest.knn.xval.posterior)
+# COME BACK TO THIS AND CHANGE MY DESCRIPTION OF THE SEED VALUES
+@
+
+\underline{Comparison of Methods:}  
+
+In deciding what value of k to use for this data set I tested numbers from 2 to 10 to see how
+the accuracy performed. All of the accuracy rates were very similar between all of the groups.
+Averaging between 82\% and 86\%. I chose 2 as the value for k since it returned the high of 86.49\%. 
+Below I have listed the fro results listed below I also included the values for LDA, QDA and Logistic Regression 
+I got in the previous homework.\\
+
+Comparing the 4 models, KNN performs the best at 86.49\%, It also has the high in Specificity at 91.51\%. But it
+does have the low value of the four models for Sensitivity at 71.43\%. While the other three models are up in the
+80's for Sensitivity.
+
+
+\begin{itemize}
+\item \underline{KNN, K=2:} Accuracy = 86.49\% Sensitivity = 71.43\% Specificity = 91.51\%
+\item \underline{LDA:} Accuracy = 81.76\% Sensitivity = 85.85\% SPecificity = 71.43\%
+\item \underline{QDA:} Accuracy = 80.41\% Sensitivity = 86.79\% SPecificity = 64.29\%
+\item \underline{Logistic Regression:} Accuracy = 80.41\% Sensitivity = 84.91\% Specificity = 69.05\%
+\end{itemize}
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 2:}
+This question is also a continuation of the analyses on the data for three bird species—
+(Northern) Flicker, (Mountain) Chickadee, and (Red-naped) Sapsucker—plus a bunch of sites
+at which none of these species of birds are nesting. In the previous homework you analyzed
+these data using logistic regression and LDA/QDA; in this homework I would like you to apply
+classification trees to the data. The first priority is to come up with accurate classifications of
+the nest sites, the second priority is to determine important variables to the birds in selecting
+nest sites, and the third priority is to determine whether the three species can be treated as
+one species (with regard to selection of bird nest sites) or need to be treated separately.
+
+
+\begin{enumerate}
+\item ) First, fit a classification tree to all the data treating the three birds as a single species.
+Compute the accuracy of your classification using 10-fold cross-validation, and
+compare it with cross–validated accuracy rates for LDA, QDA, and logistic regression
+that you computed before.
+
+<<fig=TRUE ,echo=FALSE>>=
+dataset = nest.log.df
+
+nestrpartfull=rpart(Nest ~ .-Species, 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.0,minsplit=2))
+plotcp(nestrpartfull)
+
+
+# Ask Dr. Cutler if we need to print out a picture of the tree or not?
+@
+
+
+<<echo=FALSE>>=
+set.seed(6066)
+nest.xval.predprob=rep(0,length=nrow(dataset))
+nest.xval.predclass=rep(0,length=nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+     train = dataset[xvs!=i,]
+     test = dataset[xvs==i,]
+     glub=rpart(Nest ~ .-Species,data=train,method="class",control=rpart.control(cp=0.035,minsplit=2))
+     nest.xval.predprob[xvs==i]=predict(glub,test,type="prob")[,2]
+     nest.xval.predclass[xvs==i]=predict(glub,test,type="class")
+   }
+
+table(actual = dataset$Nest, predicted = nest.xval.predclass)
+class.sum(dataset$Nest,nest.xval.predprob)
+@
+  
+\underline{Comparison of Methods:}  
+
+After plotting the cp values I decided to set the cp value to 0.035 as shown on 
+the graph above. When I entered this value it gave me the cross-validated accuracy
+for the classification tree as 80.28\%, shown below.\\
+
+Comparing this with the other three methods of classifying the data it seems to perform
+just as well as the other three. They all are around an 80\% accuracy score. QDA is the
+highest at 81.22\% and LDA is the lowest at 78.4\% but they are all very close to one another. \\
+
+Moving on and looking at their sensitivity scores QDA still performs the best at 80.19\%, and
+LDA has the lowest value at 74.53\%. Then with Specificity the Classification tree performs the
+best at 83.96\%, while the other three methods all have the same value of 82.24\%
+
+\begin{itemize}
+\item \underline{Classification Tree:} Accuracy = 80.28\% Sensitivity = 76.64\% Specificity = 83.96\%
+\item \underline{LDA:} Accuracy = 78.4\% Sensitivity = 74.53\% SPecificity = 82.24\%
+\item \underline{QDA:} Accuracy = 81.22\% Sensitivity = 80.19\% SPecificity = 82.24\%
+\item \underline{Logistic Regression:} Accuracy = 79.34\% Sensitivity = 76.42\% Specificity = 82.24\%
+\end{itemize}
+
+
+
+\item Fit classification trees for each bird species separately and, again, compute estimates
+of the accuracies by 10-fold cross validation. Qualitatively compare the classification
+trees for the three species.
+
+\underline{\bf Chickadee:}
+<<fig=TRUE,echo=FALSE>>=
+dataset = chickadee
+
+nestrpartfull=rpart(Nest ~ ., 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.0,minsplit=2))
+plotcp(nestrpartfull)
+@
+
+<<fig=TRUE, echo=FALSE>>=
+speciesplot=rpart(Nest ~ .,data=dataset,method="class",control=rpart.control(cp=0.034,minsplit=2))
+
+plot(speciesplot,margin=0.1) # This plot will not display in the output. Needs new block
+text(speciesplot,use.n=TRUE)
+@
+
+<<echo=FALSE>>=
+set.seed(6066)
+nest.xval.predprob=rep(0,length=nrow(dataset))
+nest.xval.predclass=rep(0,length=nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+     train = dataset[xvs!=i,]
+     test = dataset[xvs==i,]
+     glub=rpart(Nest ~ .,data=train,method="class",control=rpart.control(cp=0.034,minsplit=2))
+     nest.xval.predprob[xvs==i]=predict(glub,test,type="prob")[,2]
+     nest.xval.predclass[xvs==i]=predict(glub,test,type="class")
+   }
+
+table(actual = dataset$Nest, predicted = nest.xval.predclass)
+class.sum(dataset$Nest,nest.xval.predprob)
+@
+
+\underline{\bf Flicker:}
+<<fig=TRUE,echo=FALSE>>=
+dataset = flicker
+
+nestrpartfull=rpart(Nest ~ ., 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.0,minsplit=2))
+plotcp(nestrpartfull)
+@
+
+<<fig=TRUE, echo=FALSE>>=
+speciesplot=rpart(Nest ~ .,data=dataset,method="class",control=rpart.control(cp=0.1,minsplit=2))
+
+plot(speciesplot,margin=0.1) # This plot will not display in the output. Needs new block
+text(speciesplot,use.n=TRUE)
+@
+
+<<echo=FALSE>>=
+set.seed(6066)
+nest.xval.predprob=rep(0,length=nrow(dataset))
+nest.xval.predclass=rep(0,length=nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+     train = dataset[xvs!=i,]
+     test = dataset[xvs==i,]
+     glub=rpart(Nest ~ .,data=train,method="class",control=rpart.control(cp=0.1,minsplit=2))
+     nest.xval.predprob[xvs==i]=predict(glub,test,type="prob")[,2]
+     nest.xval.predclass[xvs==i]=predict(glub,test,type="class")
+   }
+
+table(actual = dataset$Nest, predicted = nest.xval.predclass)
+class.sum(dataset$Nest,nest.xval.predprob)
+@
+
+\underline{\bf Sapsucker:}
+<<fig=TRUE,echo=FALSE>>=
+dataset = sapsucker
+
+nestrpartfull=rpart(Nest ~ ., 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.0,minsplit=2))
+plotcp(nestrpartfull)
+@
+
+<<fig=TRUE, echo=FALSE>>=
+speciesplot=rpart(Nest ~ .,data=dataset,method="class",control=rpart.control(cp=0.1, minsplit=2))
+
+plot(speciesplot,margin=0.1) # This plot will not display in the output. Needs new block
+text(speciesplot,use.n=TRUE)
+@
+
+<<echo=FALSE>>=
+set.seed(6066)
+nest.xval.predprob=rep(0,length=nrow(dataset))
+nest.xval.predclass=rep(0,length=nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+     train = dataset[xvs!=i,]
+     test = dataset[xvs==i,]
+     glub=rpart(Nest ~ .,data=train,method="class",control=rpart.control(cp=0.1,minsplit=2))
+     nest.xval.predprob[xvs==i]=predict(glub,test,type="prob")[,2]
+     nest.xval.predclass[xvs==i]=predict(glub,test,type="class")
+   }
+
+table(actual = dataset$Nest, predicted = nest.xval.predclass)
+class.sum(dataset$Nest,nest.xval.predprob)
+@
+
+\underline{Comparison of the Three Species}  
+
+Looking at the output of the three cross validated classification trees Flicker has the greatest
+accuracy at 89.92\%. Looking at the the Tree for flicker it only uses 4 nodes, with Breaks along
+the variable NumTree3to6in as the first break, NumTree1to3in as the second break and NumTree9to15in
+as the final break.3 of the nodes are 0 and the final node classifies 1.\\
+
+Sapsucker has the second greatest accuracy rate at 85.81\%, and it ends in three nodes and splits
+on two variables. NumTree3to6in, and NumTree1to3in. The first two nodes classify Nest values that
+have a 0 and one node that classifies 1 as a Nest variable. \\
+
+Finally Chickadee has the lowest accuracy score at 79.73\%, but out of the three species it has the
+most nodes at 8. The tree splits along the variables NumConifer, NumTree3to6in 2x, NumSnags 2x,
+NumDownSnags, and then one more. The end nodes are 0, 0, 1, 0, 0, 1, 0, 1.\\
+
+\item Another way to get at the issue of the similarity of the bird species might be to do the
+following: 
+\begin{itemize}
+\item Fit a classification tree to the combined data using Species as the response
+variable.
+
+<<echo=FALSE, fig=TRUE>>=
+dataset = nest.log.df
+snra.cp014=rpart(Species ~ . -Nest ,control=rpart.control(cp=0.032, minsplit=2),data=dataset)
+plot(snra.cp014,margin=0.1)
+text(snra.cp014)
+
+@
+
+\item Look at the cross-validated confusion matrix for the classification tree to see
+where the misclassifications are occurring.
+\end{itemize}
+
+<<echo=FALSE>>=
+set.seed(6066)
+
+snra.cp014.xval=rep(0,nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    test=dataset[xvs==i,]
+    train=dataset[xvs!=i,]
+    glub=rpart(Species ~ . - Nest,control=rpart.control(cp=0.032, minsplit=2),data=train)
+    snra.cp014.xval[xvs==i]=predict(glub,test,type="class")
+    as.data.frame(snra.cp014.xval)
+    snra.cp014.xval[snra.cp014.xval == 4] = "Sapsucker"
+    snra.cp014.xval[snra.cp014.xval == 3] = "Non-nest"
+    snra.cp014.xval[snra.cp014.xval == 2] = "Flicker"
+    snra.cp014.xval[snra.cp014.xval == 1] = "Chickadee"
+}
+
+snra.cp014confuse.xval=table(predicted = snra.cp014.xval, actual = dataset$Species)
+confusionMatrix(snra.cp014confuse.xval)
+@
+
+\underline{Summary:}   
+
+Lokking at the balanced accuracy for each of the Species it appears that the only one the model
+detects with an worth while accuracy is Non-nest and even that only comes in at 76.58\%. Overall
+the model had an accuraccy score of 49.77\% which is not very good at all.
+
+
+\end{enumerate}
+
+\item \underline{\bf Question 3:}  
+This problem concerns the forensic glass data set labeled “Glass.csv” in Canvas. There are six
+different types of glass, coded 1—6, and nine measured variables. The first of the measured
+variables is the refractive index of the glass, and the remaining eight are weight percentages
+of eight chemical elements. The purpose of the analysis is to classify the six types of glass
+using the refractive index and the chemical percentages.
+
+\begin{enumerate}
+
+\item Fit a classification tree to the data using the 1-SE rule or choosing a tree just a little
+smaller or larger than the one selected by the 1-SE rule. Briefly summarize the tree.  
+
+<<echo=FALSE, fig=TRUE>>=
+glass <- read.csv("../../Data/Glass.csv")
+dataset = glass
+
+glassrpartfull=rpart(GlassType ~ ., 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.0,minsplit=2))
+plotcp(glassrpartfull)
+
+plot(glassrpartfull,margin=0.1)
+text(glassrpartfull,use.n=TRUE)
+@
+
+<<echo=FALSE, fig=TRUE>>=
+glassrpartfull=rpart(GlassType ~ ., 
+                    data=dataset,
+                    method="class",
+                    control=rpart.control(cp=0.018,minsplit=2))
+
+plot(glassrpartfull,margin=0.1)
+text(glassrpartfull,use.n=TRUE)
+@
+
+\underline{Summary:}  
+Based on the above cp plot I chose 0.018 as the value cp to be plugged into the classification
+tree. Looking at the tree it produces, the first major split is on the variable Barium, when
+it has a value less than 0.335. If the value is > than 0.335 then it is directed to the glass
+type 6, otherwise it drops down to the rest of the tree.\\
+
+The next major split is on Aluminum that is less than 1.42. Going right the tree then branches
+on Magnesum >=2.26 and then Sodum < 13.5. Traveling back up to where it splits on Aluminum if
+we follow the left branch the next break is Calcium < 10.48, then going left it breaks on the
+Refindex >= 1.517  and then it breaks on Magnesum, to the left and the Refindex again to the 
+right. Finally if we were to follow the right branch after the break on Calcium it takes us
+to the end of the branch that classifies glass in group 2.\\
+
+In totoal it looks like there are two nodes for glass type 1, three nodes for glass type 2,
+one node for glass type 3, one node for glass type 4, one node for glass type five and one
+node for glass type .\\
+
+\item Compute the 10-fold cross-validated confusion matrix. If you have trouble doing this,
+you may have to consider eliminating some types of glass or collapsing categories of
+glass that may be similar and have small numbers of observations.  
+
+<<echo=FALSE>>=
+set.seed(5688)
+
+snra.cp014.xval=rep(0,nrow(dataset))
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    test=dataset[xvs==i,]
+    train=dataset[xvs!=i,]
+    glub=rpart(as.factor(GlassType) ~ .,control=rpart.control(cp=0.018, minsplit=2),data=train)
+    snra.cp014.xval[xvs==i]=predict(glub,test,type="class")
+}
+
+snra.cp014confuse.xval=table(predicted = snra.cp014.xval, actual = dataset$GlassType)
+confusionMatrix(snra.cp014confuse.xval)
+@
+
+
+\end{enumerate}
+
+\end{enumerate}
+
+
+\end{document}
+

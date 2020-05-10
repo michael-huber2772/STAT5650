@@ -1,0 +1,408 @@
+\documentclass[12pt,letterpaper,final]{article}
+
+\usepackage{Sweave}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{textcomp}
+\usepackage{wasysym}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.15in}
+%\setlength{\topmargin}{0.5in}
+\setlength{\textheight}{22cm}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\parskip}{5pt plus 2pt minus 3pt}
+
+\def\thefootnote{\fnsymbol{footnote}}
+\setcounter{footnote}{1}
+
+\renewcommand{\baselinestretch}{1.2}
+\renewcommand{\labelenumi}{(\roman{enumi})}
+
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+
+% to get nice proofs ...
+\newcommand{\qedsymb}{\mbox{ }~\hfill~{\rule{2mm}{2mm}}}
+\newenvironment{proof}{\begin{trivlist}
+\item[\hspace{\labelsep}{\bf\noindent Proof: }]
+}{\qedsymb\end{trivlist}}
+
+
+\newfont{\msymb}{cmsy10 scaled 1000}
+
+\def\nullset{\mbox{\O}}
+\def\R{{I\!\!R}}
+\def\C{{I\!\!\!\!C}}
+\def\N{{I\!\!N}}
+
+\def\P{\mbox{\msymb P}}
+
+
+%\parskip 0.1in
+\pagenumbering{arabic}    %  Start using 1,2,... as page numbers.
+\pagestyle{plain}         %  Page numbers in middle bottom of page.
+%\setcounter{page}{80}  % XXXXXXXXXXXXXXXXX
+%\setcounter{theorem}{5} % XXXXXXXXXXXXXXXXX
+%\setcounter{definition}{10} % XXXXXXXXXXXXXXXXX
+
+\parindent 0in
+
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\begin{table}\centering
+\begin{tabular*}{6.15in}{@{\extracolsep{\fill}}|llr|} \hline
+STAT 5650 Statistical Learning and Data Mining 1 & \hspace*{0.5 in} & Spring 2020 \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Name:} Michael Huber} \\
+ & & \\
+\multicolumn{3}{|c|}{
+{\bf Submission Date:} 03/13/2020} \\
+ & & \\
+\multicolumn{3}{|c|}{
+Homework 3 (03/13/2020)} \\
+ & & \\
+\multicolumn{3}{|c|}{
+100 Points --- Due Friday 03/13/2020 (via Canvas by 11:59pm)} \\
+\hline
+\end{tabular*}
+\end{table}
+
+
+~ \newpage
+
+\begin{enumerate}
+
+\item \underline{\bf Question 1:}
+This is a continuation of the analyses on the data for three bird species—(Northern) Flicker,
+(Mountain) Chickadee, and (Red-naped) Sapsucker—plus a bunch of sites at which none of
+these species of birds are nesting. In the previous homework you analyzed these data using
+logistic regression and LDA/QDA; in this question I would like you to apply k-Nearest Neighbor
+classification to the data and to compare your results with the results for LDA, QDA, and
+logistic regression.
+
+
+\begin{enumerate}
+\item Apply k-NN classification to the combined dataset for all 3 species using ‘Nest’ as the
+response variable. What value of k did you select. Compare the results of this
+classification with the results you obtained for LDA, QDA, and logistic regression in the
+previous homework.
+
+<<echo=FALSE>>=
+library(ggplot2)
+library(gridExtra)
+library(MASS)
+library(vioplot)
+
+library(klaR)
+library(verification)
+@
+
+<<echo=FALSE>>=
+kappa=function(x){
+      n=sum(x)
+      pobs=(x[1,1]+x[2,2])/n
+      pexp=(sum(x[1,])*sum(x[,1])+sum(x[2,])*sum(x[,2]))/n^2
+      kappa=(pobs-pexp)/(1-pexp)
+      t1=0
+      t2=0
+      t3=0
+      pii=x/n
+      pidot=apply(pii,1,sum)
+      pdotj=apply(pii,2,sum)
+      for(i in 1:2){
+            t1 = t1 + pii[i,i]*((1-pexp) - (1-pobs)*(pidot[i]+pdotj[i]))^2
+      }
+      t2 = pii[1,2]*(pdotj[1]+pidot[2])^2 + pii[2,1]*(pdotj[2] + pidot[1])^2
+      t3 = (pobs*pexp-2*pexp+pobs)^2
+      vhat = (t1 + t2*(1-pobs)^2 -t3)/(n*(1-pexp)^4)
+      se=sqrt(vhat)
+      return(c(kappa,se))
+}
+
+
+class.sum=function(truth,predicted){
+     xt=table(truth,round(predicted+0.000001))
+     pcc=round(100*sum(diag(xt))/sum(xt),2)
+     spec=round(100*xt[1,1]/sum(xt[1,]),2)
+     sens=round(100*xt[2,2]/sum(xt[2,]),2)
+     kap=round(kappa(xt)[1],4)
+     au=round(roc.area(truth,predicted)$A,4)
+     return(cbind(c("Percent Correctly Classified = ","Specificity = ","Sensitivity = ","Kappa =","AUC= "),c(pcc,spec,sens,kap,au)))
+     }
+@
+
+<<echo=FALSE>>=
+nest <- read.csv("../../Data/Nest.csv")
+@
+
+<<echo=FALSE>>=
+nest.logt <- log(nest[,3:12]+1)
+nest.log.df <- cbind(nest[,1:2], nest.logt, StandType = nest[, 13])
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(nest.log.df))
+Nest.knn.xval.posterior=rep(0,nrow(nest.log.df))
+
+xvs=rep(1:10,length=nrow(nest.log.df))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=nest.log.df[xvs!=i,]
+    test=nest.log.df[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=2)
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = nest.log.df$Nest, predicted = Nest.knn.xval.class)
+class.sum(nest.log.df$Nest, Nest.knn.xval.posterior)
+@
+
+\underline{Comparison of Methods:}\\
+For this KNN on the nest data setting of the value of k to 2, 3 and 4 all returned similar results,
+so I set the value to 2 since it is just working to split the data into 2 groups.\\
+
+Below I have included the scores I got from the three different methods we are comparing to KNN.
+Looking at the scores below and the output of the KNN model it is clear to see that KNN outperforms
+the other three models. KNN has an accuracy over 92\%, while the other three are all around 80\%.
+The Sensitivity and Specificity of the KNN also outperform the other three models. So in this instance,
+it appears KNN would be the best model to choose for classification of this model.
+\begin{itemize}
+\item \underline{LDA:} Accuracy = 78.4\% Sensitivity = 74.53\% SPecificity = 82.24\%
+\item \underline{QDA:} Accuracy = 81.22\% Sensitivity = 80.19\% SPecificity = 82.24\%
+\item \underline{Logistic Regression:} Accuracy = 79.34\% Sensitivity = 76.42\% Specificity = 82.24\%
+\end{itemize}
+
+\item Now apply k-NN classification to the three datasets for the individual. What values of
+k did you select. Compare the results of this classification with the results you
+obtained for LDA, QDA, and logistic regression in the previous homework.
+
+<<echo=FALSE>>=
+chickadee <- droplevels(subset( nest.log.df, 
+                       Species == "Chickadee" | Species == "Non-nest",
+                       select = -Species))
+flicker <- droplevels(subset( nest.log.df, 
+                       Species == "Flicker" | Species == "Non-nest",
+                       select = -Species))
+sapsucker <- droplevels(subset( nest.log.df, 
+                       Species == "Sapsucker" | Species == "Non-nest",
+                       select = -Species))
+@
+
+\underline{\bf Chickadee:}
+<<echo=FALSE>>=
+# Chickadee
+dataset = chickadee
+set.seed(12345)
+Nest.knn.xval.class=rep(0,nrow(dataset))
+Nest.knn.xval.posterior=rep(0,nrow(dataset))
+
+xvs=rep(1:10,length=nrow(dataset))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=dataset[xvs!=i,]
+    test=dataset[xvs==i,]
+    glub=sknn(as.factor(Nest) ~ . ,data=train,kn=2) 
+    Nest.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Nest.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(actual = dataset$Nest, predicted = Nest.knn.xval.class)
+class.sum(dataset$Nest, Nest.knn.xval.posterior)
+@
+
+\underline{Comparison of Methods:}  
+
+In deciding what value of k to use for this data set I tested numbers from 2 to 10 to see how
+the accuracy performed. All of the accuracy rates were very similar between all of the groups.
+But each time I ran the test the accuracy rate would change. But only two values of k which
+were 8 and 2 got up over 87\% The rest staid between 83\% and 85\%. So I am not sure what 
+value will be printed in my end result when I compile this document. But I chose 8 as the number
+for k since it seemed to return a value greater than 87\% most often. The last test I ran it
+returned the results listed below with the values for LDA, QDA and Logistic Regression.\\
+
+Looking at the results of KNN vs the other three methods it outperforms the other three by
+around 7\% at its highest accuracy. Even at its low accuracy of around 83\% it out performs
+the other three methods. However KNN does under perform in the area of Sensitivity. It comes
+in about 8\% below LDA and QDA and about 15\% under Logistic Regression. But I did see on
+other runs that the sensitivty did come close to that of LDA and QDA. When KNN had an accuracy
+of 83.78\% it had a Sensitivity of 80.95\%. With Specificity however, KNN does much better than
+the other three. At its high it is around 94\% while the other three are in the 60\% range.
+Even when KNN had the lower accuracy rate of 83.78\% its Specificity is 84.91\%.
+\begin{itemize}
+\item \underline{KNN, K=8:} Accuracy = 87.84\% Sensitivity = 71.43\% Specificity = 94.34\%
+\item \underline{LDA:} Accuracy = 80.41\% Sensitivity = 85.85\% Specificity = 66.67\%
+\item \underline{QDA:} Accuracy = 79.73\% Sensitivity = 86.79\% Specificity = 61.90\%
+\item \underline{Logistic Regression:} Accuracy = 79.73\% Sensitivity = 87.74\% Specificity = 59.52\%
+\end{itemize}
+
+\item (1 Point) Repeat (b) from above, now using the {\it hist} function from baseR.
+
+<<fig=TRUE>>=
+hist(faithful$eruptions)
+@
+
+
+
+
+
+\item (3 Points) Repeat (c) from above, now using the {\it hist} function from baseR.
+
+<<fig=TRUE>>=
+hist(faithful$eruptions,
+     breaks = seq(1, 6, .5),
+     xlab = "Eruption Time in Minutes",
+     ylab = "Count of Eruptions",
+     main = "Old Faithful Eruption Data Histogram",
+     col = "light blue",
+     las = 1,
+     ylim = c(0, 100),
+     xlim = c(1, 6))
+@
+
+\underline{Answer:}
+\begin{itemize}
+\item <Answer Part 1>
+\item <Answer Part 2>
+\end{itemize}
+
+
+\end{enumerate}
+
+
+\newpage
+
+
+\item \underline{\bf Question 2:}
+<Description of Question 2>
+
+
+\begin{enumerate}
+\item (6 Points) Recreate the graphs (and layout) below using baseR.
+Use a ruler to  check that the width and height proportions in your graphs
+match the ones I have used. I worked with integer multiples!
+Include your R code and the resulting graphs.
+Hint: You can create a new line via \verb|\n| without any extra spaces before/after \verb|\n|.
+
+<<fig=TRUE>>=
+grid <- matrix(c(1, 1, 1, 2, 2, 3, 3, 3, 4, 4), 
+              nrow = 2, ncol = 5, byrow = TRUE)
+
+layout(grid)
+
+par(mar = c(4, 3, 4, 2))
+boxplot(geyser$duration,
+        horizontal = TRUE,
+        main = "Old Faithful:\n Duration",
+        ylim = c(0, 6))
+hist(geyser$duration,
+     main = "Old Faithful",
+     xlab = "Duration",
+     ylab = "Count",
+     xlim = c(0, 6))
+boxplot(geyser$waiting,
+        horizontal = TRUE,
+        main = "Old Faithful:\n Waiting",
+        ylim = c(40, 120))
+hist(geyser$waiting,
+     main = "Old Faithful",
+     xlab = "Waiting",
+     ylab = "Count",
+     xlim = c(40, 120),
+     ylim = c(0, 100),
+     breaks = seq(40, 120, by = 10))
+@
+\underline{Refernces:}
+\begin{itemize}
+\item https://www.statmethods.net/advgraphs/layout.html
+\item https://stackoverflow.com/questions/31319942/change-the-size-of-a-plot-when-plotting-multiple-plots-in-r
+\item https://www.youtube.com/watch?v=Z3V4Pbxeahg
+\end{itemize}
+
+
+
+
+\newpage
+
+
+\item (2 Points) Recreate the graph below using ggplot2.
+Include your R code and the resulting graph.
+
+<<fig=TRUE>>=
+ggplot(geyser, aes(x=duration, y=waiting)) +
+  geom_point() +
+  xlab("Duration") +
+  ylab("Waiting") +
+  xlim(0, 6) +
+  ylim(40, 120) +
+  ggtitle("Old Faithful Data") +
+  theme(plot.title = element_text(hjust = 0.5))
+@
+
+
+
+
+\newpage
+
+
+\item (2 Points) Doesn't the scatterplot in (b) above look rather different 
+than the scatterplot in Question 1 (j)? Note that the help page for {\it geyser}
+states \verb|waiting	 numeric	 Waiting time for this eruption| and \\
+\verb|The waiting time was incorrectly described as the time to the next|
+\verb|eruption in the original files, and corrected for MASS version 7.3-30.| \\
+Use this information to create a basic scatterplot 
+for the {\it geyser} data that matches the overall 
+appearance in Question 1 (j). 
+Include your R code and the resulting graph.
+No need to refine this scatterplot.
+
+<<fig=TRUE>>=
+duration <- geyser$duration[1:298]
+waiting <- geyser$waiting[2:299]
+
+
+df <- data.frame(duration, waiting)
+
+ggplot(df, aes(x = duration, y = waiting )) + 
+         geom_point()
+@
+
+\underline{Answer:} 
+The geyser data appears to have a negative correlation with three clusters where the faithful data has a positive correlation with 2 clusters.
+
+
+\end{enumerate}
+
+\end{enumerate}
+
+
+\newpage
+
+
+\noindent{\Large \bf General Instructions}~\\
+
+\begin{enumerate}
+
+\item <Instruction 1>
+
+\item <Instruction 2>
+
+\end{enumerate}
+
+
+\end{document}
+

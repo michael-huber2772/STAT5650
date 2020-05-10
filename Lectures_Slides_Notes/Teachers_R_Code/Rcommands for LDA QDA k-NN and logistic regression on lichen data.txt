@@ -1,0 +1,217 @@
+LAQI = read.csv("LAQI.csv")
+pilotI = read.csv("pilotI.csv")
+
+library(MASS)
+library(verification)
+
+###############
+####  LDA  ####
+###############
+
+lichenLO=subset(LAQI,select=c(LobaOreg,TransAspect,Elevation,Slope,ACONIF,PctConifCov,DegreeDays,
+                EvapoTransAve,EvapoTransDiff,MoistIndexAve,MoistIndexDiff,PrecipAve,PrecipDiff,
+                RelHumidAve,RelHumidDiff,TempAve,TempDiff,VapPressAve,VapPressDiff,PotGlobRadAve,
+                PotGlobRadDiff))
+
+pilotLO=subset(pilotI,select=c(LobaOreg,TransAspect,Elevation,Slope,ACONIF,PctConifCov,DegreeDays,
+                EvapoTransAve,EvapoTransDiff,MoistIndexAve,MoistIndexDiff,PrecipAve,PrecipDiff,
+                RelHumidAve,RelHumidDiff,TempAve,TempDiff,VapPressAve,VapPressDiff,PotGlobRadAve,
+                PotGlobRadDiff))
+
+Loreg.lda=lda(LobaOreg~ . ,data=lichenLO)
+table(lichenLO$LobaOreg,predict(Loreg.lda)$class)
+
+class.sum(lichenLO$LobaOreg,predict(Loreg.lda)$posterior[,2])
+
+Loreg.cvlda=lda(LobaOreg~ . ,CV=TRUE,data=lichenLO)
+table(lichenLO$LobaOreg,Loreg.cvlda$class)
+
+class.sum(lichenLO$LobaOreg,Loreg.cvlda$posterior[,2])
+
+
+Loreg.lda.xval.class=rep(0,nrow(lichenLO))
+Loreg.lda.xval.posterior=rep(0,nrow(lichenLO))
+
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=lichenLO[xvs!=i,]
+    test=lichenLO[xvs==i,]
+    glub=lda(LobaOreg~ . ,data=train)
+    Loreg.lda.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Loreg.lda.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(lichenLO$LobaOreg,Loreg.lda.xval.class)
+class.sum(lichenLO$LobaOreg,Loreg.lda.xval.posterior)
+
+
+table(pilotI$LobaOreg,predict(Loreg.lda,pilotI)$class)
+
+class.sum(pilotI$LobaOreg,predict(Loreg.lda,pilotI)$posterior[,2])
+
+
+
+
+
+
+###############
+####  QDA  ####
+###############
+
+Loreg.qda=qda(LobaOreg~ . ,data=lichenLO)
+table(lichenLO$LobaOreg,predict(Loreg.qda)$class)
+
+class.sum(lichenLO$LobaOreg,predict(Loreg.qda)$posterior[,2])
+
+Loreg.cvqda=qda(LobaOreg~ . ,CV=TRUE,data=lichenLO)
+table(lichenLO$LobaOreg,Loreg.cvqda$class)
+
+class.sum(lichenLO$LobaOreg,Loreg.cvqda$posterior[,2])
+
+
+Loreg.qda.xval.class=rep(0,nrow(lichenLO))
+Loreg.qda.xval.posterior=rep(0,nrow(lichenLO))
+
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=lichenLO[xvs!=i,]
+    test=lichenLO[xvs==i,]
+    glub=qda(LobaOreg~ . ,data=train)
+    Loreg.qda.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Loreg.qda.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(lichenLO$LobaOreg,Loreg.qda.xval.class)
+
+class.sum(lichenLO$LobaOreg,Loreg.qda.xval.posterior)
+
+
+
+table(pilotI$LobaOreg,predict(Loreg.qda,pilotI)$class)
+class.sum(pilotI$LobaOreg,predict(Loreg.qda,pilotI)$posterior[,2])
+
+
+##########################################
+####  Logistic Regression  Using glm  ####
+##########################################
+
+library(verification)
+
+Loreg.lr = glm(LobaOreg~ . ,family=binomial,data=lichenLO)
+table(lichenLO$LobaOreg,round(predict(Loreg.lr,type="response")))
+class.sum(lichenLO$LobaOreg,predict(Loreg.lr,type="response"))
+
+Loreg.lr.xval=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=lichenLO[xvs!=i,]
+    test=lichenLO[xvs==i,]
+    glub=glm(LobaOreg~ . ,family=binomial,data=train)
+    Loreg.lr.xval[xvs==i]=predict(glub,test,type="response")
+}
+table(lichenLO$LobaOreg,round(Loreg.lr.xval))
+class.sum(lichenLO$LobaOreg,Loreg.lr.xval)
+
+Loreg.lr.pilotI = predict(Loreg.lr,pilotI,type="response")
+table(pilotI$LobaOreg,round(Loreg.lr.pilotI))
+class.sum(pilotI$LobaOreg,Loreg.lr.pilotI)
+
+
+Loreg.lr14=step(Loreg.lr)
+
+table(lichenLO$LobaOreg,round(predict(Loreg.lr14,type="response")))
+class.sum(lichenLO$LobaOreg,predict(Loreg.lr14,type="response"))
+
+
+Loreg.lr14.xval=rep(0,nrow(lichenLO))
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=lichenLO[xvs!=i,]
+    test=lichenLO[xvs==i,]
+    glub=step(glm(LobaOreg~ . ,family=binomial,data=train))
+    Loreg.lr14.xval[xvs==i]=predict(glub,test,type="response")
+}
+table(lichenLO$LobaOreg,round(Loreg.lr14.xval))
+class.sum(lichenLO$LobaOreg,Loreg.lr14.xval)
+
+
+Loreg.lr14.pilotI = predict(Loreg.lr14,pilotI,type="response")
+table(pilotI$LobaOreg,round(Loreg.lr14.pilotI))
+class.sum(pilotI$LobaOreg,Loreg.lr14.pilotI)
+
+
+
+#############################################
+####  Logistic Regression  Using glmnet  ####
+#############################################
+
+library(glmnet)
+library(verification)
+
+xlichenLO = as.matrix(lichenLO[,2:21])
+ylichenLO = as.matrix(lichenLO[,1])
+
+Loreg.glmnet=glmnet(xlichenLO,ylichenLO,family="binomial")
+plot(Loreg.glmnet)
+
+Loreg.cvglmnet=cv.glmnet(xlichenLO,ylichenLO,family="binomial")
+plot(Loreg.cvglmnet)
+
+lambda.min=Loreg.cvglmnet$lambda.min
+lambda.min
+
+lambda.1se=Loreg.cvglmnet$lambda.1se
+lambda.1se
+
+table(lichenLO$LobaOreg,predict(Loreg.glmnet,xlichenLO,s=lambda.min, type="class"))
+class.sum(lichenLO$LobaOreg,predict(Loreg.glmnet,xlichenLO,s=lambda.min, type="response"))
+
+table(lichenLO$LobaOreg,predict(Loreg.glmnet,xlichenLO,s=lambda.1se, type="class"))
+class.sum(lichenLO$LobaOreg,predict(Loreg.glmnet,xlichenLO,s=lambda.1se, type="response"))
+
+xpilotLO=as.matrix(pilotLO[,2:21])
+ypilotLO=as.matrix(pilotLO[,1])
+
+table(pilotI$LobaOreg,predict(Loreg.glmnet,xpilotLO,s=lambda.min, type="class"))
+class.sum(pilotI$LobaOreg,predict(Loreg.glmnet,xpilotLO,s=lambda.min, type="response"))
+
+table(pilotI$LobaOreg,predict(Loreg.glmnet,xpilotLO,s=lambda.1se, type="class"))
+class.sum(pilotI$LobaOreg,predict(Loreg.glmnet,xpilotLO,s=lambda.1se, type="response"))
+
+
+################
+####  k-NN  ####
+################
+
+library(klaR)
+library(verification)
+
+Loreg.knn=sknn(as.factor(LobaOreg) ~ . ,data=lichenLO,kn=7)
+table(lichenLO$LobaOreg,predict(Loreg.knn)$class)
+
+class.sum(lichenLO$LobaOreg,predict(Loreg.knn)$posterior[,2])
+
+set.seed(12345)
+Loreg.knn.xval.class=rep(0,nrow(lichenLO))
+Loreg.knn.xval.posterior=rep(0,nrow(lichenLO))
+
+xvs=rep(1:10,length=nrow(lichenLO))
+xvs=sample(xvs)
+for(i in 1:10){
+    train=lichenLO[xvs!=i,]
+    test=lichenLO[xvs==i,]
+    glub=sknn(as.factor(LobaOreg) ~ . ,data=train,kn=3)
+    Loreg.knn.xval.posterior[xvs==i]=predict(glub,test)$posterior[,2]
+    Loreg.knn.xval.class[xvs==i]=predict(glub,test)$class
+}
+table(lichenLO$LobaOreg,Loreg.knn.xval.class)
+
+class.sum(lichenLO$LobaOreg,Loreg.knn.xval.posterior)
+
+
+
+table(pilotI$LobaOreg,predict(Loreg.knn,pilotI)$class)
+class.sum(pilotI$LobaOreg,predict(Loreg.knn,pilotI)$posterior[,2])
+

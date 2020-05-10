@@ -1,0 +1,99 @@
+library(rpart)
+library(verification)
+
+######################################################################
+#### Fitting Fully Grown Tree to SNRA Data to Determine Tree Size ####
+######################################################################
+
+snra2=read.csv("SNRA2.csv")
+names(snra2)
+
+set.seed(2475)
+
+snra.rpartfull=rpart(Type ~ . , control=rpart.control(cp=0.0, minsplit=2),data=snra2)
+plotcp(snra.rpartfull)
+
+
+###################################################
+#### Fitting a Tree with cp=0.014 to SNRA Data ####
+###################################################
+
+snra.cp014=rpart(Type ~ . ,control=rpart.control(cp=0.014, minsplit=2),data=snra2)
+plot(snra.cp014,margin=0.1)
+text(snra.cp014)
+
+
+snra.cp014confuse=table(snra2$Type,predict(snra.cp014,type="class"))
+snra.cp014confuse
+100*sum(diag(snra.cp014confuse))/699
+
+
+snra.cp014.xval=rep(0,nrow(snra2))
+xvs=rep(1:10,length=nrow(snra2))
+xvs=sample(xvs)
+for(i in 1:10){
+    test=snra2[xvs==i,]
+    train=snra2[xvs!=i,]
+    glub=rpart(Type ~ . ,control=rpart.control(cp=0.014, minsplit=2),data=train)
+    snra.cp014.xval[xvs==i]=predict(glub,test,type="class")
+}
+
+snra.cp014confuse.xval=table(snra2$Type,snra.cp014.xval)
+snra.cp014confuse.xval
+100*sum(diag(snra.cp014confuse.xval))/699
+
+
+####################################################
+#### Fitting a Tree with cp=0.0026 to SNRA Data ####
+####################################################
+
+snra.cp0026=rpart(Type ~ . , control=rpart.control(cp=0.0026, minsplit=2),data=snra2)
+plot(snra.cp0026,margin=0.1)
+text(snra.cp0026)
+
+
+snra.cp0026confuse=table(snra2$Type,predict(snra.cp0026,type="class"))
+snra.cp0026confuse
+100*sum(diag(snra.cp0026confuse))/699
+
+
+snra.cp0026.xval=rep(0,nrow(snra2))
+xvs=rep(1:10,length=nrow(snra2))
+xvs=sample(xvs)
+for(i in 1:10){
+    test=snra2[xvs==i,]
+    train=snra2[xvs!=i,]
+    glub=rpart(Type ~ . ,control=rpart.control(cp=0.0026, minsplit=2),data=train)
+    snra.cp0026.xval[xvs==i]=predict(glub,test,type="class")
+}
+snra.cp0026confuse.xval=table(snra2$Type,snra.cp0026.xval)
+snra.cp0026confuse.xval
+100*sum(diag(snra.cp0026confuse.xval))/699
+
+
+
+####################################################
+#### Fitting a Tree with cp=0.0013 to SNRA Data ####
+####################################################
+
+snra.cp0013=rpart(Type ~ . , control=rpart.control(cp=0.0013, minsplit=2),data=snra2)
+plot(snra.cp0013)
+
+snra.cp0013confuse=table(snra2$Type,predict(snra.cp0013,type="class"))
+snra.cp0013confuse
+100*sum(diag(snra.cp0013confuse))/699
+
+
+snra.cp0013.xval=rep(0,nrow(snra))
+xvs=rep(1:10,length=nrow(snra))
+xvs=sample(xvs)
+for(i in 1:10){
+    test=snra2[xvs==i,]
+    train=snra2[xvs!=i,]
+    glub=rpart(Type ~ . , control=rpart.control(cp=0.0013, minsplit=2),data=train)
+    snra.cp0013.xval[xvs==i]=predict(glub,test,type="class")
+}
+
+snra.cp0013confuse.xval=table(snra2$Type,snra.cp0013.xval)
+snra.cp0013confuse.xval
+100*sum(diag(snra.cp0013confuse.xval))/699
